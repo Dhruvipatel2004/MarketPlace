@@ -14,8 +14,8 @@ import Badge from '../components/common/Badge';
 import EmptyState from '../components/common/EmptyState';
 import { useOrderStore } from '../store/useOrderStore';
 
-const OrderItem = React.memo(({ item }: { item: any }) => (
-    <View style={styles.orderCard}>
+const OrderItem = React.memo(({ item, onPress }: { item: any; onPress: () => void }) => (
+    <TouchableOpacity style={styles.orderCard} onPress={onPress}>
         <View style={styles.orderHeader}>
             <View style={styles.orderIdGroup}>
                 <Package size={20} color={theme.colors.primary} />
@@ -36,15 +36,18 @@ const OrderItem = React.memo(({ item }: { item: any }) => (
             <Text style={styles.totalLabel}>Total Amount</Text>
             <Text style={styles.totalValue}>${item.total.toFixed(2)}</Text>
         </View>
-    </View>
+    </TouchableOpacity>
 ));
 
 export default function OrdersScreen({ navigation }: any) {
     const orders = useOrderStore((state) => state.orders);
 
     const renderItem = useCallback(({ item }: { item: any }) => (
-        <OrderItem item={item} />
-    ), []);
+        <OrderItem
+            item={item}
+            onPress={() => navigation.navigate("OrderDetail", { order: item })}
+        />
+    ), [navigation]);
 
     return (
         <SafeAreaView style={styles.container}>

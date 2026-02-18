@@ -11,7 +11,7 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ShoppingCart, ArrowLeft, Heart, Star, User as UserIcon } from 'lucide-react-native';
+import { ShoppingCart, ArrowLeft, Heart, Star, User as UserIcon, Camera as CameraIcon, X } from 'lucide-react-native';
 import { theme } from "../styles/theme";
 import Button from "../components/common/Button";
 import Badge from "../components/common/Badge";
@@ -19,10 +19,12 @@ import { useCartStore } from "../store/useCartStore";
 import { useWishlistStore } from "../store/useWishlistStore";
 import { useReviewStore } from "../store/useReviewStore";
 import { useUserStore } from "../store/useUserStore";
+import { launchImageLibrary } from 'react-native-image-picker';
 
 export default function ProductDetails({ route, navigation }: any) {
   const { product } = route.params;
-
+  const cart = useCartStore((state) => state.cart);
+  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const addToCart = useCartStore((state) => state.addToCart);
   const wishlist = useWishlistStore((state) => state.wishlist);
   const toggleWishlist = useWishlistStore((state) => state.toggleWishlist);
@@ -38,12 +40,53 @@ export default function ProductDetails({ route, navigation }: any) {
   const [isReviewModalVisible, setIsReviewModalVisible] = useState(false);
   const [newRating, setNewRating] = useState(5);
   const [newComment, setNewComment] = useState("");
+  const [reviewImages, setReviewImages] = useState<string[]>([]);
+
+  const capturedImage = route.params?.capturedImage;
+
+  React.useEffect(() => {
+    if (capturedImage) {
+      setReviewImages(prev => [...prev.slice(-2), capturedImage]);
+      navigation.setParams({ capturedImage: undefined });
+      setIsReviewModalVisible(true); // Re-open modal to show new photo
+    }
+  }, [capturedImage, navigation]);
 
   const isItemWishlisted = wishlist.some(w => w.id === product.id);
 
   const onAddToCart = useCallback(() => {
     addToCart(product);
   }, [addToCart, product]);
+
+  const handleImagePick = () => {
+    Alert.alert(
+      "Add Photo",
+      "Choose a source",
+      [
+        {
+          text: "Camera",
+          onPress: () => navigation.navigate("Camera", {
+            source: 'reviews'
+          })
+        },
+        {
+          text: "Gallery",
+          onPress: async () => {
+            const result = await launchImageLibrary({
+              mediaType: 'photo',
+              quality: 0.8,
+              selectionLimit: 3 - reviewImages.length,
+            });
+            if (result.assets) {
+              const uris = result.assets.map(a => a.uri).filter(Boolean) as string[];
+              setReviewImages(prev => [...prev, ...uris].slice(-3));
+            }
+          }
+        },
+        { text: "Cancel", style: "cancel" }
+      ]
+    );
+  };
 
   const handleAddReview = () => {
     if (!user) {
@@ -64,10 +107,12 @@ export default function ProductDetails({ route, navigation }: any) {
       userName: user.name || "Anonymous",
       rating: newRating,
       comment: newComment,
+      images: reviewImages,
     });
 
     setNewComment("");
     setNewRating(5);
+    setReviewImages([]);
     setIsReviewModalVisible(false);
     Alert.alert("Success", "Review added successfully!");
   };
@@ -86,6 +131,11 @@ export default function ProductDetails({ route, navigation }: any) {
           onPress={() => navigation.navigate("Tabs", { screen: "Cart" })}
         >
           <ShoppingCart size={24} color={theme.colors.text} />
+          {cartCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{cartCount}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -151,6 +201,14 @@ export default function ProductDetails({ route, navigation }: any) {
                     </Text>
                   </View>
                   <Text style={styles.reviewComment}>{review.comment}</Text>
+
+                  {review.images && review.images.length > 0 && (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.reviewImagesList}>
+                      {review.images.map((img: string, idx: number) => (
+                        <Image key={idx} source={{ uri: img }} style={styles.reviewImage} />
+                      ))}
+                    </ScrollView>
+                  )}
                 </View>
               ))
             ) : (
@@ -177,46 +235,68 @@ export default function ProductDetails({ route, navigation }: any) {
         onRequestClose={() => setIsReviewModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Write a Review</Text>
+          <ScrollView contentContainerStyle={styles.modalScroll}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Write a Review</Text>
 
-            <Text style={styles.label}>Rating</Text>
-            <View style={styles.ratingPicker}>
-              {[1, 2, 3, 4, 5].map((s) => (
-                <TouchableOpacity key={s} onPress={() => setNewRating(s)}>
-                  <Star
-                    size={32}
-                    color={s <= newRating ? "#FFB000" : theme.colors.border}
-                    fill={s <= newRating ? "#FFB000" : "transparent"}
-                  />
-                </TouchableOpacity>
-              ))}
-            </View>
+              <Text style={styles.label}>Rating</Text>
+              <View style={styles.ratingPicker}>
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <TouchableOpacity key={s} onPress={() => setNewRating(s)}>
+                    <Star
+                      size={32}
+                      color={s <= newRating ? "#FFB000" : theme.colors.border}
+                      fill={s <= newRating ? "#FFB000" : "transparent"}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-            <Text style={styles.label}>Your Comment</Text>
-            <TextInput
-              style={styles.commentInput}
-              placeholder="Tell us what you think..."
-              multiline
-              numberOfLines={4}
-              value={newComment}
-              onChangeText={setNewComment}
-            />
-
-            <View style={styles.modalButtons}>
-              <Button
-                title="Cancel"
-                variant="outline"
-                onPress={() => setIsReviewModalVisible(false)}
-                style={styles.modalButton}
+              <Text style={styles.label}>Your Comment</Text>
+              <TextInput
+                style={styles.commentInput}
+                placeholder="Tell us what you think..."
+                multiline
+                numberOfLines={4}
+                value={newComment}
+                onChangeText={setNewComment}
               />
-              <Button
-                title="Submit"
-                onPress={handleAddReview}
-                style={styles.modalButton}
-              />
+
+              <Text style={styles.label}>Photos (Optional)</Text>
+              <View style={styles.imagePickerRow}>
+                {reviewImages.map((img, idx) => (
+                  <View key={idx} style={styles.pickedImageWrapper}>
+                    <Image source={{ uri: img }} style={styles.pickedImage} />
+                    <TouchableOpacity
+                      style={styles.removeImageIcon}
+                      onPress={() => setReviewImages(prev => prev.filter((_, i) => i !== idx))}
+                    >
+                      <X size={12} color={theme.colors.white} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                {reviewImages.length < 3 && (
+                  <TouchableOpacity style={styles.imageUploadBtn} onPress={handleImagePick}>
+                    <CameraIcon size={24} color={theme.colors.textSecondary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <View style={styles.modalButtons}>
+                <Button
+                  title="Cancel"
+                  variant="outline"
+                  onPress={() => setIsReviewModalVisible(false)}
+                  style={styles.modalButton}
+                />
+                <Button
+                  title="Submit"
+                  onPress={handleAddReview}
+                  style={styles.modalButton}
+                />
+              </View>
             </View>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
     </SafeAreaView>
@@ -251,6 +331,26 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: theme.colors.error,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: theme.colors.surface,
+  },
+  badgeText: {
+    color: theme.colors.white,
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   imageContainer: {
     width: '100%',
@@ -383,6 +483,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: theme.colors.textSecondary,
     lineHeight: 20,
+    marginBottom: theme.spacing.xs,
+  },
+  reviewImagesList: {
+    marginTop: theme.spacing.sm,
+  },
+  reviewImage: {
+    width: 100,
+    height: 100,
+    borderRadius: theme.roundness.sm,
+    marginRight: theme.spacing.sm,
   },
   noReviews: {
     ...theme.typography.caption,
@@ -393,6 +503,10 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+  },
+  modalScroll: {
+    flexGrow: 1,
     justifyContent: 'center',
     padding: theme.spacing.xl,
   },
@@ -422,10 +536,49 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: theme.roundness.md,
     padding: theme.spacing.md,
-    height: 120,
+    height: 100,
     textAlignVertical: 'top',
     ...theme.typography.body,
-    marginBottom: theme.spacing.xl,
+    marginBottom: theme.spacing.md,
+  },
+  imagePickerRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+  },
+  pickedImageWrapper: {
+    width: 60,
+    height: 60,
+    borderRadius: theme.roundness.sm,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  pickedImage: {
+    width: '100%',
+    height: '100%',
+  },
+  removeImageIcon: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageUploadBtn: {
+    width: 60,
+    height: 60,
+    borderRadius: theme.roundness.sm,
+    backgroundColor: theme.colors.background,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: theme.colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalButtons: {
     flexDirection: 'row',

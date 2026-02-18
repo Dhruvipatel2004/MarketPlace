@@ -8,7 +8,8 @@ import {
     Text,
     View,
     KeyboardAvoidingView,
-    Platform
+    Platform,
+    TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Yup from 'yup';
@@ -18,6 +19,14 @@ import Input from "../components/common/Input";
 import Button from "../components/common/Button";
 import { useCartStore } from "../store/useCartStore";
 import { useOrderStore } from "../store/useOrderStore";
+import GetLocation from 'react-native-get-location';
+import ReactNativeHapticFeedback from "react-native-haptic-feedback";
+import axios from 'axios';
+
+const hapticOptions = {
+    enableVibrateFallback: true,
+    ignoreAndroidSystemSettings: false,
+};
 
 const validationSchema = Yup.object({
     name: Yup.string().required('Name is Required'),
@@ -43,6 +52,7 @@ export default function CheckoutScreen() {
             };
 
             addOrder(newOrder);
+            ReactNativeHapticFeedback.trigger("notificationSuccess", hapticOptions);
 
             Alert.alert(
                 "Success",
@@ -103,7 +113,7 @@ export default function CheckoutScreen() {
                             onSubmit={handlePlaceOrder}
                         >
                             {({
-                                handleChange, handleBlur, handleSubmit, values, errors, touched, isSubmitting
+                                handleChange, handleBlur, handleSubmit, values, errors, touched, isSubmitting, setFieldValue
                             }: any) => (
                                 <View style={styles.form}>
                                     <Input
@@ -126,8 +136,45 @@ export default function CheckoutScreen() {
                                         error={touched.phone && errors.phone ? errors.phone : undefined}
                                     />
 
+                                    <View style={styles.addressLabelRow}>
+                                        <Text style={styles.label}>Delivery Address</Text>
+                                        <TouchableOpacity
+                                            onPress={async () => {
+                                                try {
+                                                    const location = await GetLocation.getCurrentPosition({
+                                                        enableHighAccuracy: true,
+                                                        timeout: 15000,
+                                                    });
+
+                                                    ReactNativeHapticFeedback.trigger("impactMedium", hapticOptions);
+
+                                                    // Reverse Geocoding using Nominatim (OpenStreetMap)
+                                                    const response = await axios.get(`https://nominatim.openstreetmap.org/reverse`, {
+                                                        params: {
+                                                            format: 'jsonv2',
+                                                            lat: location.latitude,
+                                                            lon: location.longitude,
+                                                        },
+                                                        headers: {
+                                                            'User-Agent': 'MarketPlaceApp/1.0'
+                                                        }
+                                                    });
+
+                                                    if (response.data && response.data.display_name) {
+                                                        setFieldValue('address', response.data.display_name);
+                                                    } else {
+                                                        setFieldValue('address', `Lat: ${location.latitude.toFixed(4)}, Lon: ${location.longitude.toFixed(4)}`);
+                                                    }
+                                                } catch (error) {
+                                                    console.error("Location error:", error);
+                                                    Alert.alert("Error", "Could not fetch your location or address. Please check your permissions.");
+                                                }
+                                            }}
+                                        >
+                                            <Text style={styles.locationLink}>Auto-fill Location</Text>
+                                        </TouchableOpacity>
+                                    </View>
                                     <Input
-                                        label="Delivery Address"
                                         placeholder="Flat/House No, Street, Area"
                                         multiline
                                         numberOfLines={4}
@@ -242,5 +289,21 @@ const styles = StyleSheet.create({
     },
     button: {
         marginTop: theme.spacing.sm,
+    },
+    addressLabelRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: theme.spacing.xs,
+    },
+    label: {
+        ...theme.typography.body,
+        fontWeight: 'bold',
+        color: theme.colors.text,
+    },
+    locationLink: {
+        ...theme.typography.caption,
+        color: theme.colors.primary,
+        fontWeight: 'bold',
     },
 });

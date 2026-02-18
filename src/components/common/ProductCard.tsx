@@ -10,6 +10,12 @@ import {
 import { Heart, ShoppingCart } from 'lucide-react-native';
 import { theme } from '../../styles/theme';
 import Badge from './Badge';
+import ReactNativeHapticFeedback from "react-native-haptic-feedback";
+
+const hapticOptions = {
+    enableVibrateFallback: true,
+    ignoreAndroidSystemSettings: false,
+};
 
 interface ProductCardProps {
     product: any;
@@ -51,7 +57,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
                         {onAddToCart && (
                             <TouchableOpacity
                                 style={styles.listAddToCartButton}
-                                onPress={onAddToCart}
+                                onPress={() => {
+                                    onAddToCart?.();
+                                    ReactNativeHapticFeedback.trigger("impactLight", hapticOptions);
+                                }}
                             >
                                 <ShoppingCart size={18} color={theme.colors.white} />
                                 <Text style={styles.listAddToCartText}>Add to Cart</Text>

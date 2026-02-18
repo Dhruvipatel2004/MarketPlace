@@ -5,10 +5,14 @@ import HomeScreen from "../screens/HomeScreen";
 import CartScreen from "../screens/CartScreen";
 import { Home, ShoppingCart, User } from "lucide-react-native";
 import ProfileScreen from "../screens/ProfileScreen";
+import { useCartStore } from "../store/useCartStore";
 
 const Tab = createBottomTabNavigator();
 
 export default function TabNavigator() {
+  const cart = useCartStore((state) => state.cart);
+  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -22,7 +26,7 @@ export default function TabNavigator() {
           if (route.name === "Cart") {
             return <ShoppingCart color={color} size={size} />;
           }
-          if(route.name === "Profile"){
+          if (route.name === "Profile") {
             return <User color={color} size={size} />;
           }
           return null;
@@ -30,7 +34,13 @@ export default function TabNavigator() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Cart" component={CartScreen} />
+      <Tab.Screen
+        name="Cart"
+        component={CartScreen}
+        options={{
+          tabBarBadge: cartCount > 0 ? cartCount : undefined,
+        }}
+      />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );

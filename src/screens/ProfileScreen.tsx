@@ -1,14 +1,27 @@
 import React, { useCallback } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
-import { LogOut, User as UserIcon, Settings, Heart, ShoppingBag, ChevronRight } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image } from "react-native";
+import { LogOut, User as UserIcon, Settings, Heart, ShoppingBag, ChevronRight, Camera as CameraIcon } from 'lucide-react-native';
 import MainLayout from "../components/MainLayout";
 import { theme } from "../styles/theme";
 import Button from "../components/common/Button";
 import { useUserStore } from "../store/useUserStore";
+import { launchImageLibrary } from 'react-native-image-picker';
 
 export default function ProfileScreen({ navigation }: any) {
   const user = useUserStore((state) => state.user);
   const logout = useUserStore((state) => state.logout);
+  const updateProfileImage = useUserStore((state) => state.updateProfileImage);
+
+  const route = (navigation as any).getState().routes.find((r: any) => r.name === 'Profile');
+  const capturedImage = route?.params?.capturedImage;
+
+  React.useEffect(() => {
+    if (capturedImage) {
+      updateProfileImage(capturedImage);
+      // Clear param to prevent re-processing
+      navigation.setParams({ capturedImage: undefined });
+    }
+  }, [capturedImage, updateProfileImage, navigation]);
 
   const handleLogout = useCallback(() => {
     Alert.alert(
@@ -26,6 +39,34 @@ export default function ProfileScreen({ navigation }: any) {
       ]
     );
   }, [logout]);
+
+  const handleImagePick = () => {
+    Alert.alert(
+      "Update Profile Photo",
+      "Choose a source",
+      [
+        {
+          text: "Camera",
+          onPress: () => navigation.navigate("Camera", {
+            source: 'profile'
+          })
+        },
+        {
+          text: "Gallery",
+          onPress: async () => {
+            const result = await launchImageLibrary({
+              mediaType: 'photo',
+              quality: 0.8,
+            });
+            if (result.assets && result.assets[0].uri) {
+              updateProfileImage(result.assets[0].uri);
+            }
+          }
+        },
+        { text: "Cancel", style: "cancel" }
+      ]
+    );
+  };
 
   const renderOption = (icon: any, label: string, onPress?: () => void) => (
     <TouchableOpacity style={styles.option} onPress={onPress} activeOpacity={0.7}>
@@ -45,9 +86,21 @@ export default function ProfileScreen({ navigation }: any) {
         <Text style={styles.title}>My Profile</Text>
 
         <View style={styles.profileHeader}>
-          <View style={styles.avatarContainer}>
-            <UserIcon size={40} color={theme.colors.primary} />
-          </View>
+          <TouchableOpacity
+            style={styles.avatarContainer}
+            onPress={user ? handleImagePick : undefined}
+          >
+            {user?.profileImage ? (
+              <Image source={{ uri: user.profileImage }} style={styles.avatarImage} />
+            ) : (
+              <UserIcon size={40} color={theme.colors.primary} />
+            )}
+            {user && (
+              <View style={styles.cameraIconBadge}>
+                <CameraIcon size={12} color={theme.colors.white} />
+              </View>
+            )}
+          </TouchableOpacity>
           <View style={styles.profileInfo}>
             {user ? (
               <>
@@ -68,7 +121,7 @@ export default function ProfileScreen({ navigation }: any) {
             <>
               {renderOption(<ShoppingBag size={20} color={theme.colors.primary} />, "My Orders", () => navigation.navigate("Orders"))}
               {renderOption(<Heart size={20} color={theme.colors.primary} />, "Wishlist", () => navigation.navigate("Wishlist"))}
-              {renderOption(<Settings size={20} color={theme.colors.primary} />, "Settings")}
+              {renderOption(<Settings size={20} color={theme.colors.primary} />, "Settings", () => navigation.navigate("Settings"))}
               <TouchableOpacity style={[styles.option, styles.logoutOption]} onPress={handleLogout}>
                 <View style={styles.optionLeft}>
                   <View style={[styles.iconContainer, styles.logoutIconContainer]}>
@@ -134,6 +187,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: theme.colors.border,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  cameraIconBadge: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    backgroundColor: theme.colors.primary,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: theme.colors.surface,
   },
   profileInfo: {
     marginLeft: theme.spacing.md,

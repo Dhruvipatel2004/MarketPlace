@@ -10,6 +10,7 @@ export const theme = {
         border: '#dfe6e9',
         white: '#ffffff',
         black: '#000000',
+        success: '#2ecc71',
         shadow: 'rgba(0,0,0,0.1)',
     },
     spacing: {

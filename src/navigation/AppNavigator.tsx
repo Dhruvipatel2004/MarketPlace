@@ -8,6 +8,9 @@ import LoginScreen from "../screens/LoginScreen";
 import SignupScreen from "../screens/SignupScreen";
 import OrdersScreen from "../screens/OrdersScreen";
 import WishlistScreen from "../screens/WishlistScreen";
+import CameraScreen from "../screens/CameraScreen";
+import OrderDetailScreen from "../screens/OrderDetailScreen";
+import SettingsScreen from "../screens/SettingsScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -47,6 +50,18 @@ export default function AppNavigator() {
         <Stack.Screen
           name="Wishlist"
           component={WishlistScreen}
+        />
+        <Stack.Screen
+          name="Camera"
+          component={CameraScreen}
+        />
+        <Stack.Screen
+          name="OrderDetail"
+          component={OrderDetailScreen}
+        />
+        <Stack.Screen
+          name="Settings"
+          component={SettingsScreen}
         />
       </Stack.Navigator>
     </NavigationContainer>

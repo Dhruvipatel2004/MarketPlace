@@ -1,94 +1,199 @@
-import React, { useEffect, useState } from "react";
-import { getProducts } from "../services/api";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   StyleSheet,
+  View,
+  Modal,
   Text,
-  TouchableOpacity,
-  View
+  TouchableOpacity
 } from "react-native";
 import MainLayout from "../components/MainLayout";
 import { theme } from "../styles/theme";
+import { useProducts } from "../hooks/useProducts";
+import ProductCard from "../components/common/ProductCard";
+import { useCartStore } from "../store/useCartStore";
+import { useWishlistStore } from "../store/useWishlistStore";
+import SearchHeader from "../components/SearchHeader";
+import EmptyState from "../components/common/EmptyState";
+import { SearchX } from "lucide-react-native";
+import { ProductCardSkeleton } from "../components/common/SkeletonLoader";
 
-import { useWishlist } from "../context/WishlistContext";
-import { Heart } from "lucide-react-native";
+type SortOption = 'Default' | 'Price: Low' | 'Price: High' | 'Rating';
 
 export default function HomeScreen({ navigation }: any) {
-  const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [numCols] = useState(2);
-  const { toggleWishlist, isWishlisted } = useWishlist();
+  const { products, loading, refresh } = useProducts();
+  const addToCart = useCartStore((state) => state.addToCart);
 
-  useEffect(() => {
-    fetchProducts();
-  }, []);
+  // Select wishlist to trigger re-renders when it changes
+  const wishlist = useWishlistStore((state) => state.wishlist);
+  const toggleWishlist = useWishlistStore((state) => state.toggleWishlist);
 
-  const fetchProducts = async () => {
-    try {
-      const data = await getProducts();
-      setProducts(data);
-    } catch (err) {
-      console.log(err);
-    } finally {
-      setLoading(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [activeSort, setActiveSort] = useState<SortOption>("Default");
+  const [isSortModalVisible, setIsSortModalVisible] = useState(false);
+
+  const categories = useMemo(() => {
+    const cats = new Set(products.map((p: any) => p.category));
+    return Array.from(cats) as string[];
+  }, [products]);
+
+  const filteredAndSortedProducts = useMemo(() => {
+    let result = [...products];
+
+    // Filter by Search
+    if (searchQuery) {
+      result = result.filter(p =>
+        p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.category.toLowerCase().includes(searchQuery.toLowerCase())
+      );
     }
+
+    // Filter by Category
+    if (activeCategory !== "All") {
+      result = result.filter(p => p.category === activeCategory);
+    }
+
+    // Sort
+    switch (activeSort) {
+      case 'Price: Low':
+        result.sort((a, b) => a.price - b.price);
+        break;
+      case 'Price: High':
+        result.sort((a, b) => b.price - a.price);
+        break;
+      case 'Rating':
+        result.sort((a, b) => (b.rating?.rate || 0) - (a.rating?.rate || 0));
+        break;
+      default:
+        // Keep original order
+        break;
+    }
+
+    return result;
+  }, [products, searchQuery, activeCategory, activeSort]);
+
+  const handleProductPress = useCallback((product: any) => {
+    navigation.navigate("Details", { product });
+  }, [navigation]);
+
+  const renderProduct = useCallback(({ item }: { item: any }) => {
+    const isItemWishlisted = wishlist.some(w => w.id === item.id);
+
+    return (
+      <ProductCard
+        product={item}
+        onPress={() => handleProductPress(item)}
+        onWishlistToggle={() => toggleWishlist(item)}
+        isWishlisted={isItemWishlisted}
+        variant="grid"
+        onAddToCart={() => addToCart(item)}
+      />
+    );
+  }, [handleProductPress, toggleWishlist, wishlist, addToCart]);
+
+  const handleSortSelect = (option: SortOption) => {
+    setActiveSort(option);
+    setIsSortModalVisible(false);
   };
 
-  if (loading) {
+  if (loading && products.length === 0) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
+      <MainLayout navigation={navigation}>
+        <SearchHeader
+          onSearch={() => { }}
+          categories={[]}
+          activeCategory="All"
+          onSelectCategory={() => { }}
+          onOpenSort={() => { }}
+          activeSort="Default"
+        />
+        <View style={styles.skeletonContainer}>
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <ProductCardSkeleton key={i} />
+          ))}
+        </View>
+      </MainLayout>
     );
   }
 
-  const renderProduct = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={styles.card}
-      activeOpacity={0.9}
-      onPress={() => navigation.navigate("Details", { product: item })}
-    >
-      <View style={styles.imageContainer}>
-        <Image source={{ uri: item.image }} style={styles.image} />
-        <TouchableOpacity
-          style={styles.wishlistBadge}
-          onPress={() => toggleWishlist(item)}
-        >
-          <Heart
-            size={18}
-            color={isWishlisted(item.id) ? theme.colors.error : theme.colors.textSecondary}
-            fill={isWishlisted(item.id) ? theme.colors.error : "transparent"}
-          />
-        </TouchableOpacity>
-      </View>
-      <View style={styles.infoContainer}>
-        <Text numberOfLines={2} style={styles.title}>
-          {item.title}
-        </Text>
-        <View style={styles.priceRow}>
-          <Text style={styles.price}>${item.price.toFixed(2)}</Text>
-          <View style={styles.ratingBadge}>
-            <Text style={styles.ratingText}>★ {item.rating?.rate || '4.5'}</Text>
-          </View>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-
   return (
     <MainLayout navigation={navigation}>
+      <SearchHeader
+        onSearch={setSearchQuery}
+        categories={categories}
+        activeCategory={activeCategory}
+        onSelectCategory={setActiveCategory}
+        onOpenSort={() => setIsSortModalVisible(true)}
+        activeSort={activeSort}
+      />
+
       <FlatList
-        data={products}
-        key={numCols}
-        numColumns={numCols}
+        data={filteredAndSortedProducts}
         keyExtractor={(item) => item.id.toString()}
+        renderItem={renderProduct}
+        numColumns={2}
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.listContainer}
-        renderItem={renderProduct}
         showsVerticalScrollIndicator={false}
+        onRefresh={refresh}
+        refreshing={loading}
+        ListEmptyComponent={
+          !loading ? (
+            <EmptyState
+              icon={<SearchX size={80} color={theme.colors.border} />}
+              title="No Products Found"
+              subtitle="Try adjusting your search or category filter"
+              buttonTitle="Clear Filters"
+              onButtonPress={() => {
+                setSearchQuery("");
+                setActiveCategory("All");
+                setActiveSort("Default");
+              }}
+            />
+          ) : null
+        }
+        // Performance optimizations
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        initialNumToRender={6}
       />
+
+      <Modal
+        visible={isSortModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsSortModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setIsSortModalVisible(false)}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Sort By</Text>
+            {(['Default', 'Price: Low', 'Price: High', 'Rating'] as SortOption[]).map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.sortOption,
+                  activeSort === option && styles.sortOptionActive
+                ]}
+                onPress={() => handleSortSelect(option)}
+              >
+                <Text style={[
+                  styles.sortOptionText,
+                  activeSort === option && styles.sortOptionTextActive
+                ]}>
+                  {option}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </MainLayout>
   );
 }
@@ -102,74 +207,51 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: theme.spacing.md,
+    paddingBottom: 40,
+    flexGrow: 1,
   },
   row: {
     justifyContent: 'space-between',
   },
-  card: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.roundness.lg,
-    marginBottom: theme.spacing.md,
-    width: '48%',
-    shadowColor: theme.colors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-    overflow: 'hidden',
-  },
-  imageContainer: {
-    backgroundColor: '#fff',
-    padding: theme.spacing.md,
-    height: 160,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  wishlistBadge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    padding: 6,
-    borderRadius: 20,
-    zIndex: 1,
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'contain',
-  },
-  infoContainer: {
-    padding: theme.spacing.sm,
-  },
-  title: {
-    ...theme.typography.caption,
-    fontWeight: '600',
-    color: theme.colors.text,
-    height: 36,
-    lineHeight: 18,
-  },
-  priceRow: {
+  skeletonContainer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: theme.spacing.md,
     justifyContent: 'space-between',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: theme.colors.surface,
+    borderTopLeftRadius: theme.roundness.xl,
+    borderTopRightRadius: theme.roundness.xl,
+    padding: theme.spacing.lg,
+    paddingBottom: 40,
+  },
+  modalTitle: {
+    ...theme.typography.h2,
+    marginBottom: theme.spacing.md,
+    textAlign: 'center',
+  },
+  sortOption: {
+    paddingVertical: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
     alignItems: 'center',
-    marginTop: theme.spacing.xs,
   },
-  price: {
-    fontSize: 16,
-    fontWeight: 'bold',
+  sortOptionActive: {
+    backgroundColor: '#F0F7FF',
+    borderRadius: theme.roundness.md,
+  },
+  sortOptionText: {
+    ...theme.typography.body,
+    color: theme.colors.text,
+  },
+  sortOptionTextActive: {
     color: theme.colors.primary,
-  },
-  ratingBadge: {
-    backgroundColor: '#FFF9E6',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: theme.roundness.sm,
-  },
-  ratingText: {
-    fontSize: 10,
     fontWeight: 'bold',
-    color: '#FFB800',
-  }
+  },
 });

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { Formik } from "formik";
 import {
@@ -6,8 +6,6 @@ import {
     ScrollView,
     StyleSheet,
     Text,
-    TextInput,
-    TouchableOpacity,
     View,
     KeyboardAvoidingView,
     Platform
@@ -15,9 +13,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Yup from 'yup';
 import CustomHeader from "../components/CustomHeader";
-import { useCart } from "../context/CartContext";
-import { saveData, getData } from "../utils/storage";
 import { theme } from "../styles/theme";
+import Input from "../components/common/Input";
+import Button from "../components/common/Button";
+import { useCartStore } from "../store/useCartStore";
+import { useOrderStore } from "../store/useOrderStore";
 
 const validationSchema = Yup.object({
     name: Yup.string().required('Name is Required'),
@@ -27,19 +27,22 @@ const validationSchema = Yup.object({
 
 export default function CheckoutScreen() {
     const navigation = useNavigation<any>();
-    const { cart, totalPrice, clearCart } = useCart();
+    const cart = useCartStore((state) => state.cart);
+    const totalPrice = useCartStore((state) => state.totalPrice);
+    const clearCart = useCartStore((state) => state.clearCart);
+    const addOrder = useOrderStore((state) => state.addOrder);
 
-    const handlePlaceOrder = async (_values: any) => {
+    const handlePlaceOrder = async (values: any, { setSubmitting }: any) => {
         try {
             const newOrder = {
                 id: Date.now(),
                 items: cart,
                 total: totalPrice,
                 date: new Date().toISOString(),
+                shippingDetails: values
             };
 
-            const existingOrders = await getData('orders') || [];
-            await saveData('orders', [...existingOrders, newOrder]);
+            addOrder(newOrder);
 
             Alert.alert(
                 "Success",
@@ -49,15 +52,28 @@ export default function CheckoutScreen() {
                         text: "OK",
                         onPress: () => {
                             clearCart();
-                            navigation.navigate("Tabs");
+                            navigation.replace("Tabs");
                         }
                     }
                 ]
             );
         } catch {
             Alert.alert("Error", "Failed to place order. Please try again.");
+        } finally {
+            setSubmitting(false);
         }
     };
+
+    const orderSummary = useMemo(() => {
+        return cart.map((item) => (
+            <View key={item.id} style={styles.summaryItem}>
+                <Text style={styles.itemTitle} numberOfLines={1}>
+                    {item.title} <Text style={styles.itemQuantity}>x{item.quantity}</Text>
+                </Text>
+                <Text style={styles.itemPrice}>${(item.price * item.quantity).toFixed(2)}</Text>
+            </View>
+        ));
+    }, [cart]);
 
     return (
         <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -66,18 +82,11 @@ export default function CheckoutScreen() {
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
                 style={styles.keyboardView}
             >
-                <ScrollView contentContainerStyle={styles.container}>
+                <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Order Summary</Text>
                         <View style={styles.summaryCard}>
-                            {cart.map((item) => (
-                                <View key={item.id} style={styles.summaryItem}>
-                                    <Text style={styles.itemTitle} numberOfLines={1}>
-                                        {item.title} <Text style={styles.itemQuantity}>x{item.quantity}</Text>
-                                    </Text>
-                                    <Text style={styles.itemPrice}>${(item.price * item.quantity).toFixed(2)}</Text>
-                                </View>
-                            ))}
+                            {orderSummary}
                             <View style={styles.divider} />
                             <View style={styles.totalRow}>
                                 <Text style={styles.totalLabel}>Grand Total</Text>
@@ -94,65 +103,48 @@ export default function CheckoutScreen() {
                             onSubmit={handlePlaceOrder}
                         >
                             {({
-                                handleChange, handleBlur, handleSubmit, values, errors, touched,
+                                handleChange, handleBlur, handleSubmit, values, errors, touched, isSubmitting
                             }: any) => (
                                 <View style={styles.form}>
-                                    <View style={styles.inputGroup}>
-                                        <Text style={styles.label}>Full Name</Text>
-                                        <TextInput
-                                            placeholder="John Doe"
-                                            placeholderTextColor={theme.colors.textSecondary}
-                                            style={[styles.input, touched.name && errors.name && styles.inputError]}
-                                            value={values.name}
-                                            onChangeText={handleChange('name')}
-                                            onBlur={handleBlur("name")}
-                                        />
-                                        {touched.name && errors.name && (
-                                            <Text style={styles.error}>{errors.name}</Text>
-                                        )}
-                                    </View>
+                                    <Input
+                                        label="Full Name"
+                                        placeholder="John Doe"
+                                        value={values.name}
+                                        onChangeText={handleChange('name')}
+                                        onBlur={handleBlur("name")}
+                                        error={touched.name && errors.name ? errors.name : undefined}
+                                    />
 
-                                    <View style={styles.inputGroup}>
-                                        <Text style={styles.label}>Phone Number</Text>
-                                        <TextInput
-                                            placeholder="10 digit mobile number"
-                                            placeholderTextColor={theme.colors.textSecondary}
-                                            style={[styles.input, touched.phone && errors.phone && styles.inputError]}
-                                            value={values.phone}
-                                            keyboardType="phone-pad"
-                                            onChangeText={handleChange("phone")}
-                                            onBlur={handleBlur("phone")}
-                                            maxLength={10}
-                                        />
-                                        {touched.phone && errors.phone && (
-                                            <Text style={styles.error}>{errors.phone}</Text>
-                                        )}
-                                    </View>
+                                    <Input
+                                        label="Phone Number"
+                                        placeholder="10 digit mobile number"
+                                        value={values.phone}
+                                        keyboardType="phone-pad"
+                                        onChangeText={handleChange("phone")}
+                                        onBlur={handleBlur("phone")}
+                                        maxLength={10}
+                                        error={touched.phone && errors.phone ? errors.phone : undefined}
+                                    />
 
-                                    <View style={styles.inputGroup}>
-                                        <Text style={styles.label}>Delivery Address</Text>
-                                        <TextInput
-                                            placeholder="Flat/House No, Street, Area"
-                                            placeholderTextColor={theme.colors.textSecondary}
-                                            style={[styles.input, styles.textArea, touched.address && errors.address && styles.inputError]}
-                                            multiline
-                                            numberOfLines={4}
-                                            value={values.address}
-                                            onChangeText={handleChange("address")}
-                                            onBlur={handleBlur("address")}
-                                        />
-                                        {touched.address && errors.address && (
-                                            <Text style={styles.error}>{errors.address}</Text>
-                                        )}
-                                    </View>
+                                    <Input
+                                        label="Delivery Address"
+                                        placeholder="Flat/House No, Street, Area"
+                                        multiline
+                                        numberOfLines={4}
+                                        value={values.address}
+                                        onChangeText={handleChange("address")}
+                                        onBlur={handleBlur("address")}
+                                        error={touched.address && errors.address ? errors.address : undefined}
+                                        style={styles.textArea}
+                                    />
 
-                                    <TouchableOpacity
+                                    <Button
+                                        title="Confirm Order"
+                                        onPress={handleSubmit as any}
+                                        loading={isSubmitting}
                                         style={styles.button}
-                                        onPress={handleSubmit}
-                                        activeOpacity={0.8}
-                                    >
-                                        <Text style={styles.buttonText}>Confirm Order</Text>
-                                    </TouchableOpacity>
+                                        size="large"
+                                    />
                                 </View>
                             )}
                         </Formik>
@@ -241,50 +233,14 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
         elevation: 3,
     },
-    inputGroup: {
-        marginBottom: theme.spacing.md,
-    },
-    label: {
-        ...theme.typography.caption,
-        fontWeight: '600',
-        marginBottom: theme.spacing.xs,
-        color: theme.colors.text,
-    },
-    input: {
-        borderWidth: 1,
-        borderColor: theme.colors.border,
-        padding: theme.spacing.md,
-        borderRadius: theme.roundness.md,
-        fontSize: 16,
-        color: theme.colors.text,
-        backgroundColor: theme.colors.background,
-    },
-    inputError: {
-        borderColor: theme.colors.error,
-    },
     textArea: {
         height: 100,
         textAlignVertical: 'top',
+        borderColor: theme.colors.border,
+        borderWidth: 1,
+        borderRadius: theme.roundness.lg,
     },
     button: {
-        backgroundColor: theme.colors.primary,
-        padding: theme.spacing.md,
-        borderRadius: theme.roundness.md,
         marginTop: theme.spacing.sm,
-        shadowColor: theme.colors.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 5,
-        elevation: 5,
-    },
-    buttonText: {
-        color: theme.colors.white,
-        textAlign: "center",
-        ...theme.typography.button,
-    },
-    error: {
-        color: theme.colors.error,
-        fontSize: 12,
-        marginTop: 4,
     },
 });

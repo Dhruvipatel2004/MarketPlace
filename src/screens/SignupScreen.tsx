@@ -1,7 +1,6 @@
 import React from "react";
 import {
   Text,
-  TextInput,
   StyleSheet,
   TouchableOpacity,
   Alert,
@@ -16,6 +15,9 @@ import * as Yup from "yup";
 import CustomHeader from "../components/CustomHeader";
 import { theme } from "../styles/theme";
 import { saveData, getData } from "../utils/storage";
+import Input from "../components/common/Input";
+import Button from "../components/common/Button";
+import { useUserStore } from "../store/useUserStore";
 
 const validationSchema = Yup.object({
   name: Yup.string().required("Name required"),
@@ -24,6 +26,8 @@ const validationSchema = Yup.object({
 });
 
 export default function SignupScreen({ navigation }: any) {
+  const setUser = useUserStore((state) => state.setUser);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <CustomHeader title="Create Account" />
@@ -31,7 +35,7 @@ export default function SignupScreen({ navigation }: any) {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.container}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
             <Text style={styles.title}>Signup</Text>
             <Text style={styles.subtitle}>Join our marketplace today</Text>
@@ -40,7 +44,7 @@ export default function SignupScreen({ navigation }: any) {
           <Formik
             initialValues={{ name: "", email: "", password: "" }}
             validationSchema={validationSchema}
-            onSubmit={async (values) => {
+            onSubmit={async (values, { setSubmitting }) => {
               try {
                 const registeredUsers = await getData("registered_users") || [];
                 const userExists = registeredUsers.find((u: any) => u.email.toLowerCase() === values.email.toLowerCase());
@@ -53,80 +57,56 @@ export default function SignupScreen({ navigation }: any) {
                 const newUser = { ...values, id: Date.now() };
                 await saveData("registered_users", [...registeredUsers, newUser]);
 
+                setUser(newUser);
                 Alert.alert("Success", "Account Created!", [
-                  { text: "Login Now", onPress: () => navigation.navigate("Login") }
+                  { text: "Continue", onPress: () => navigation.replace("Tabs") }
                 ]);
               } catch {
                 Alert.alert("Error", "Failed to create account");
+              } finally {
+                setSubmitting(false);
               }
             }}
           >
-            {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
+            {({ handleChange, handleBlur, handleSubmit, values, errors, touched, isSubmitting }) => (
               <View style={styles.form}>
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Full Name</Text>
-                  <TextInput
-                    placeholder="Enter your name"
-                    placeholderTextColor={theme.colors.textSecondary}
-                    style={[
-                      styles.input,
-                      touched.name && errors.name && styles.inputError
-                    ]}
-                    value={values.name}
-                    onChangeText={handleChange("name")}
-                    onBlur={handleBlur("name")}
-                  />
-                  {touched.name && errors.name && (
-                    <Text style={styles.errorText}>{errors.name}</Text>
-                  )}
-                </View>
+                <Input
+                  label="Full Name"
+                  placeholder="Enter your name"
+                  value={values.name}
+                  onChangeText={handleChange("name")}
+                  onBlur={handleBlur("name")}
+                  error={touched.name && errors.name ? errors.name : undefined}
+                />
 
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Email Address</Text>
-                  <TextInput
-                    placeholder="Enter your email"
-                    placeholderTextColor={theme.colors.textSecondary}
-                    style={[
-                      styles.input,
-                      touched.email && errors.email && styles.inputError
-                    ]}
-                    value={values.email}
-                    onChangeText={handleChange("email")}
-                    onBlur={handleBlur("email")}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                  />
-                  {touched.email && errors.email && (
-                    <Text style={styles.errorText}>{errors.email}</Text>
-                  )}
-                </View>
+                <Input
+                  label="Email Address"
+                  placeholder="Enter your email"
+                  value={values.email}
+                  onChangeText={handleChange("email")}
+                  onBlur={handleBlur("email")}
+                  error={touched.email && errors.email ? errors.email : undefined}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
 
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Password</Text>
-                  <TextInput
-                    placeholder="Create a password"
-                    placeholderTextColor={theme.colors.textSecondary}
-                    secureTextEntry
-                    style={[
-                      styles.input,
-                      touched.password && errors.password && styles.inputError
-                    ]}
-                    value={values.password}
-                    onChangeText={handleChange("password")}
-                    onBlur={handleBlur("password")}
-                  />
-                  {touched.password && errors.password && (
-                    <Text style={styles.errorText}>{errors.password}</Text>
-                  )}
-                </View>
+                <Input
+                  label="Password"
+                  placeholder="Create a password"
+                  value={values.password}
+                  onChangeText={handleChange("password")}
+                  onBlur={handleBlur("password")}
+                  error={touched.password && errors.password ? errors.password : undefined}
+                  secureTextEntry
+                />
 
-                <TouchableOpacity
-                  style={styles.button}
+                <Button
+                  title="Signup"
                   onPress={handleSubmit as any}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.buttonText}>Signup</Text>
-                </TouchableOpacity>
+                  loading={isSubmitting}
+                  style={styles.button}
+                  size="large"
+                />
 
                 <View style={styles.footer}>
                   <Text style={styles.footerText}>Already have an account? </Text>
@@ -170,47 +150,8 @@ const styles = StyleSheet.create({
   form: {
     width: '100%',
   },
-  inputContainer: {
-    marginBottom: theme.spacing.md,
-  },
-  label: {
-    ...theme.typography.caption,
-    fontWeight: '600',
-    marginBottom: theme.spacing.xs,
-    color: theme.colors.text,
-  },
-  input: {
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    padding: theme.spacing.md,
-    borderRadius: theme.roundness.md,
-    fontSize: 16,
-    color: theme.colors.text,
-  },
-  inputError: {
-    borderColor: theme.colors.error,
-  },
-  errorText: {
-    color: theme.colors.error,
-    fontSize: 12,
-    marginTop: 4,
-  },
   button: {
-    backgroundColor: theme.colors.primary,
-    padding: theme.spacing.md,
-    borderRadius: theme.roundness.md,
     marginTop: theme.spacing.md,
-    shadowColor: theme.colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  buttonText: {
-    color: theme.colors.white,
-    textAlign: "center",
-    ...theme.typography.button,
   },
   footer: {
     flexDirection: 'row',

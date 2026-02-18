@@ -1,57 +1,50 @@
-import React, { useEffect, useState } from 'react';
+/* eslint-disable react-native/no-inline-styles */
+import React, { useCallback } from 'react';
 import {
     FlatList,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
-    SafeAreaView
 } from 'react-native';
-import { ArrowLeft, Package, ChevronRight, Clock } from 'lucide-react-native';
-import { getData } from '../utils/storage';
+import { ArrowLeft, Package, Clock } from 'lucide-react-native';
 import { theme } from '../styles/theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Badge from '../components/common/Badge';
+import EmptyState from '../components/common/EmptyState';
+import { useOrderStore } from '../store/useOrderStore';
+
+const OrderItem = React.memo(({ item }: { item: any }) => (
+    <View style={styles.orderCard}>
+        <View style={styles.orderHeader}>
+            <View style={styles.orderIdGroup}>
+                <Package size={20} color={theme.colors.primary} />
+                <Text style={styles.orderId}>Order #{item.id.toString().slice(-6)}</Text>
+            </View>
+            <Badge label="Delivered" variant="success" />
+        </View>
+
+        <View style={styles.orderInfo}>
+            <View style={styles.infoRow}>
+                <Clock size={14} color={theme.colors.textSecondary} />
+                <Text style={styles.infoText}>{new Date(item.date).toLocaleDateString()}</Text>
+            </View>
+            <Text style={styles.itemCount}>{item.items.length} {item.items.length === 1 ? 'item' : 'items'}</Text>
+        </View>
+
+        <View style={styles.orderFooter}>
+            <Text style={styles.totalLabel}>Total Amount</Text>
+            <Text style={styles.totalValue}>${item.total.toFixed(2)}</Text>
+        </View>
+    </View>
+));
 
 export default function OrdersScreen({ navigation }: any) {
-    const [orders, setOrders] = useState<any[]>([]);
+    const orders = useOrderStore((state) => state.orders);
 
-    useEffect(() => {
-        loadOrders();
-    }, []);
-
-    const loadOrders = async () => {
-        const storedOrders = await getData('orders');
-        if (storedOrders) {
-            // Sort by date descending
-            setOrders(storedOrders.reverse());
-        }
-    };
-
-    const renderItem = ({ item }: { item: any }) => (
-        <View style={styles.orderCard}>
-            <View style={styles.orderHeader}>
-                <View style={styles.orderIdGroup}>
-                    <Package size={20} color={theme.colors.primary} />
-                    <Text style={styles.orderId}>Order #{item.id.toString().slice(-6)}</Text>
-                </View>
-                <View style={styles.statusBadge}>
-                    <Text style={styles.statusText}>Delivered</Text>
-                </View>
-            </View>
-
-            <View style={styles.orderInfo}>
-                <View style={styles.infoRow}>
-                    <Clock size={14} color={theme.colors.textSecondary} />
-                    <Text style={styles.infoText}>{new Date(item.date).toLocaleDateString()}</Text>
-                </View>
-                <Text style={styles.itemCount}>{item.items.length} {item.items.length === 1 ? 'item' : 'items'}</Text>
-            </View>
-
-            <View style={styles.orderFooter}>
-                <Text style={styles.totalLabel}>Total Amount</Text>
-                <Text style={styles.totalValue}>${item.total.toFixed(2)}</Text>
-            </View>
-        </View>
-    );
+    const renderItem = useCallback(({ item }: { item: any }) => (
+        <OrderItem item={item} />
+    ), []);
 
     return (
         <SafeAreaView style={styles.container}>
@@ -70,13 +63,17 @@ export default function OrdersScreen({ navigation }: any) {
                     keyExtractor={(item) => item.id.toString()}
                     contentContainerStyle={styles.list}
                     showsVerticalScrollIndicator={false}
+                    removeClippedSubviews={true}
+                    initialNumToRender={10}
                 />
             ) : (
-                <View style={styles.emptyContainer}>
-                    <Package size={80} color={theme.colors.border} />
-                    <Text style={styles.emptyTitle}>No Orders Yet</Text>
-                    <Text style={styles.emptySubtitle}>When you buy something, it will appear here!</Text>
-                </View>
+                <EmptyState
+                    icon={<Package size={80} color={theme.colors.border} />}
+                    title="No Orders Yet"
+                    subtitle="When you buy something, it will appear here!"
+                    buttonTitle="Shop Now"
+                    onButtonPress={() => navigation.navigate("Tabs", { screen: "Home" })}
+                />
             )}
         </SafeAreaView>
     );
@@ -133,17 +130,6 @@ const styles = StyleSheet.create({
         marginLeft: theme.spacing.sm,
         color: theme.colors.text,
     },
-    statusBadge: {
-        backgroundColor: '#E8F5E9',
-        paddingVertical: 4,
-        paddingHorizontal: 10,
-        borderRadius: 12,
-    },
-    statusText: {
-        color: '#2E7D32',
-        fontSize: 12,
-        fontWeight: 'bold',
-    },
     orderInfo: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -179,21 +165,5 @@ const styles = StyleSheet.create({
         ...theme.typography.h2,
         color: theme.colors.primary,
         fontSize: 20,
-    },
-    emptyContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: theme.spacing.xl,
-    },
-    emptyTitle: {
-        ...theme.typography.h2,
-        marginTop: theme.spacing.lg,
-        color: theme.colors.text,
-    },
-    emptySubtitle: {
-        ...theme.typography.caption,
-        marginTop: theme.spacing.xs,
-        textAlign: 'center',
     },
 });

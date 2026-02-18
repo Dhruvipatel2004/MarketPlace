@@ -1,39 +1,40 @@
-import React from "react";
+import React, { useCallback, useMemo } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   FlatList,
   Image,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
   Alert
 } from "react-native";
-import { Trash2, Plus, Minus, ShoppingBag } from 'lucide-react-native';
+import { Trash2, ShoppingBag } from 'lucide-react-native';
 import CustomHeader from "../components/CustomHeader";
-import { useCart } from "../context/CartContext";
 import { theme } from "../styles/theme";
+import Button from "../components/common/Button";
+import EmptyState from "../components/common/EmptyState";
+import QuantitySelector from "../components/common/QuantitySelector";
+import { useCartStore } from "../store/useCartStore";
 
-export default function CartScreen({ navigation }: any) {
-  const { cart, updateQuantity, removeFromCart, totalPrice } = useCart();
+interface CartItemProps {
+  item: any;
+  onUpdateQuantity: (id: number, delta: number) => void;
+  onRemove: (id: number) => void;
+}
 
-  const renderEmptyCart = () => (
-    <View style={styles.emptyContainer}>
-      <View style={styles.emptyIconContainer}>
-        <ShoppingBag size={80} color={theme.colors.border} />
-      </View>
-      <Text style={styles.emptyTitle}>Your cart is empty</Text>
-      <Text style={styles.emptySubtitle}>Looks like you haven't added anything to your cart yet.</Text>
-      <TouchableOpacity
-        style={styles.shopButton}
-        onPress={() => navigation.navigate("Home")}
-      >
-        <Text style={styles.shopButtonText}>Start Shopping</Text>
-      </TouchableOpacity>
-    </View>
-  );
+const CartItem = React.memo(({ item, onUpdateQuantity, onRemove }: CartItemProps) => {
+  const handleRemove = () => {
+    Alert.alert(
+      "Remove Item",
+      "Are you sure you want to remove this item?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Remove", style: "destructive", onPress: () => onRemove(item.id) }
+      ]
+    );
+  };
 
-  const renderCartItem = ({ item }: { item: any }) => (
+  return (
     <View style={styles.cartItem}>
       <View style={styles.itemImageContainer}>
         <Image source={{ uri: item.image }} style={styles.itemImage} />
@@ -43,49 +44,52 @@ export default function CartScreen({ navigation }: any) {
         <Text numberOfLines={1} style={styles.itemTitle}>{item.title}</Text>
         <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
 
-        <View style={styles.quantityContainer}>
-          <TouchableOpacity
-            onPress={() => updateQuantity(item.id, -1)}
-            style={styles.quantityButton}
-          >
-            <Minus size={16} color={theme.colors.text} />
-          </TouchableOpacity>
-
-          <Text style={styles.quantityText}>{item.quantity}</Text>
-
-          <TouchableOpacity
-            onPress={() => updateQuantity(item.id, 1)}
-            style={styles.quantityButton}
-          >
-            <Plus size={16} color={theme.colors.text} />
-          </TouchableOpacity>
-        </View>
+        <QuantitySelector
+          quantity={item.quantity}
+          onIncrease={() => onUpdateQuantity(item.id, 1)}
+          onDecrease={() => onUpdateQuantity(item.id, -1)}
+        />
       </View>
 
-      <TouchableOpacity
-        onPress={() => {
-          Alert.alert(
-            "Remove Item",
-            "Are you sure you want to remove this item?",
-            [
-              { text: "Cancel", style: "cancel" },
-              { text: "Remove", style: "destructive", onPress: () => removeFromCart(item.id) }
-            ]
-          );
-        }}
+      <Button
+        variant="text"
+        title=""
+        icon={<Trash2 size={20} color={theme.colors.error} />}
+        onPress={handleRemove}
         style={styles.removeButton}
-      >
-        <Trash2 size={20} color={theme.colors.error} />
-      </TouchableOpacity>
+      />
     </View>
   );
+});
+
+export default function CartScreen({ navigation }: any) {
+  const cart = useCartStore((state) => state.cart);
+  const updateQuantity = useCartStore((state) => state.updateQuantity);
+  const removeFromCart = useCartStore((state) => state.removeFromCart);
+  const totalPrice = useCartStore((state) => state.totalPrice);
+
+  const subtotal = useMemo(() => totalPrice, [totalPrice]);
+
+  const renderCartItem = useCallback(({ item }: { item: any }) => (
+    <CartItem
+      item={item}
+      onUpdateQuantity={updateQuantity}
+      onRemove={removeFromCart}
+    />
+  ), [updateQuantity, removeFromCart]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <CustomHeader title="Shopping Cart" />
 
       {cart.length === 0 ? (
-        renderEmptyCart()
+        <EmptyState
+          icon={<ShoppingBag size={80} color={theme.colors.border} />}
+          title="Your cart is empty"
+          subtitle="Looks like you haven't added anything to your cart yet."
+          buttonTitle="Start Shopping"
+          onButtonPress={() => navigation.navigate("Tabs", { screen: "Home" })}
+        />
       ) : (
         <>
           <FlatList
@@ -93,12 +97,13 @@ export default function CartScreen({ navigation }: any) {
             keyExtractor={(item) => item.id.toString()}
             contentContainerStyle={styles.listContent}
             renderItem={renderCartItem}
+            removeClippedSubviews={true}
           />
 
           <View style={styles.footer}>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Subtotal</Text>
-              <Text style={styles.summaryValue}>${totalPrice.toFixed(2)}</Text>
+              <Text style={styles.summaryValue}>${subtotal.toFixed(2)}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Shipping</Text>
@@ -106,16 +111,15 @@ export default function CartScreen({ navigation }: any) {
             </View>
             <View style={[styles.summaryRow, styles.totalRow]}>
               <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>${totalPrice.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>${subtotal.toFixed(2)}</Text>
             </View>
 
-            <TouchableOpacity
-              style={styles.checkoutButton}
+            <Button
+              title="Proceed to Checkout"
               onPress={() => navigation.navigate("Checkout")}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.checkoutText}>Proceed to Checkout</Text>
-            </TouchableOpacity>
+              style={styles.checkoutButton}
+              size="large"
+            />
           </View>
         </>
       )}
@@ -170,26 +174,12 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     fontWeight: 'bold',
     marginTop: 2,
-  },
-  quantityContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: theme.spacing.sm,
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.roundness.sm,
-    alignSelf: 'flex-start',
-  },
-  quantityButton: {
-    padding: 6,
-  },
-  quantityText: {
-    paddingHorizontal: 12,
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: theme.colors.text,
+    marginBottom: theme.spacing.xs,
   },
   removeButton: {
     padding: theme.spacing.sm,
+    minHeight: 40,
+    minWidth: 40,
   },
   footer: {
     backgroundColor: theme.colors.surface,
@@ -232,54 +222,6 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
   },
   checkoutButton: {
-    backgroundColor: theme.colors.primary,
-    padding: theme.spacing.md,
-    borderRadius: theme.roundness.md,
-    alignItems: 'center',
-    shadowColor: theme.colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
+    width: '100%',
   },
-  checkoutText: {
-    color: theme.colors.white,
-    ...theme.typography.button,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: theme.spacing.xl,
-  },
-  emptyIconContainer: {
-    width: 150,
-    height: 150,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 75,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: theme.spacing.lg,
-  },
-  emptyTitle: {
-    ...theme.typography.h2,
-    color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
-  },
-  emptySubtitle: {
-    ...theme.typography.caption,
-    textAlign: 'center',
-    marginBottom: theme.spacing.xl,
-  },
-  shopButton: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: 40,
-    paddingVertical: 15,
-    borderRadius: theme.roundness.full,
-  },
-  shopButtonText: {
-    color: theme.colors.white,
-    fontWeight: 'bold',
-    fontSize: 16,
-  }
 });

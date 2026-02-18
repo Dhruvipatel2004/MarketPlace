@@ -1,26 +1,16 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import { LogOut, User as UserIcon, Settings, Heart, ShoppingBag, ChevronRight } from 'lucide-react-native';
 import MainLayout from "../components/MainLayout";
-import { getData, removeData } from "../utils/storage";
-import { useFocusEffect } from "@react-navigation/native";
 import { theme } from "../styles/theme";
+import Button from "../components/common/Button";
+import { useUserStore } from "../store/useUserStore";
 
 export default function ProfileScreen({ navigation }: any) {
-  const [user, setUser] = useState<any>(null);
+  const user = useUserStore((state) => state.user);
+  const logout = useUserStore((state) => state.logout);
 
-  useFocusEffect(
-    useCallback(() => {
-      const loadUser = async () => {
-        const data = await getData("user");
-        setUser(data);
-      };
-
-      loadUser();
-    }, [])
-  );
-
-  const handleLogout = async () => {
+  const handleLogout = useCallback(() => {
     Alert.alert(
       "Logout",
       "Are you sure you want to logout?",
@@ -29,14 +19,13 @@ export default function ProfileScreen({ navigation }: any) {
         {
           text: "Logout",
           style: "destructive",
-          onPress: async () => {
-            await removeData("user");
-            setUser(null);
+          onPress: () => {
+            logout();
           }
         }
       ]
     );
-  };
+  }, [logout]);
 
   const renderOption = (icon: any, label: string, onPress?: () => void) => (
     <TouchableOpacity style={styles.option} onPress={onPress} activeOpacity={0.7}>
@@ -62,7 +51,7 @@ export default function ProfileScreen({ navigation }: any) {
           <View style={styles.profileInfo}>
             {user ? (
               <>
-                <Text style={styles.userName}>Hello, User</Text>
+                <Text style={styles.userName}>Hello, {user.name || 'User'}</Text>
                 <Text style={styles.userEmail}>{user.email || 'user@example.com'}</Text>
               </>
             ) : (
@@ -91,19 +80,19 @@ export default function ProfileScreen({ navigation }: any) {
             </>
           ) : (
             <View style={styles.authContainer}>
-              <TouchableOpacity
-                style={styles.loginButton}
+              <Button
+                title="Login"
                 onPress={() => navigation.navigate("Login")}
-              >
-                <Text style={styles.loginButtonText}>Login</Text>
-              </TouchableOpacity>
+                style={styles.loginButton}
+                size="large"
+              />
 
-              <TouchableOpacity
-                style={styles.signupButton}
+              <Button
+                title="Create Account"
+                variant="outline"
                 onPress={() => navigation.navigate("Signup")}
-              >
-                <Text style={styles.signupButtonText}>Create Account</Text>
-              </TouchableOpacity>
+                size="large"
+              />
             </View>
           )}
         </View>
@@ -209,26 +198,6 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
   },
   loginButton: {
-    backgroundColor: theme.colors.primary,
-    padding: theme.spacing.md,
-    borderRadius: theme.roundness.md,
     marginBottom: theme.spacing.md,
-    alignItems: 'center',
-  },
-  loginButtonText: {
-    color: theme.colors.white,
-    fontWeight: 'bold',
-  },
-  signupButton: {
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.md,
-    borderRadius: theme.roundness.md,
-    borderWidth: 1,
-    borderColor: theme.colors.primary,
-    alignItems: 'center',
-  },
-  signupButtonText: {
-    color: theme.colors.primary,
-    fontWeight: 'bold',
   },
 });

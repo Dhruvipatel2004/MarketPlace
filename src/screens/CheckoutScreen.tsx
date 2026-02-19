@@ -23,6 +23,8 @@ import GetLocation from 'react-native-get-location';
 import ReactNativeHapticFeedback from "react-native-haptic-feedback";
 import axios from 'axios';
 
+import { notificationService } from "../utils/NotificationService";
+
 const hapticOptions = {
     enableVibrateFallback: true,
     ignoreAndroidSystemSettings: false,
@@ -50,6 +52,21 @@ export default function CheckoutScreen() {
                 date: new Date().toISOString(),
                 shippingDetails: values
             };
+
+            // Trigger Immediate Notification
+            notificationService.displayImmediateNotification(
+                "Order Placed! 🎉",
+                `Thanks ${values.name}, your order for $${totalPrice.toFixed(2)} is being processed.`,
+                { screen: 'Orders' }
+            );
+
+            // Schedule Experience Review (30 seconds later for practice)
+            notificationService.scheduleNotification(
+                "How was your experience?",
+                "Tell us what you think of the MarketPlace app!",
+                30,
+                { screen: 'OrderDetail', id: newOrder.id.toString() }
+            );
 
             addOrder(newOrder);
             ReactNativeHapticFeedback.trigger("notificationSuccess", hapticOptions);

@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 interface Review {
     id: string;
     productId: number;
+    orderId?: number; // Added to track specific order reviews
     userName: string;
     rating: number;
     comment: string;

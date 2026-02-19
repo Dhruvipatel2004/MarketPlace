@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     ScrollView,
     StyleSheet,
@@ -6,17 +6,58 @@ import {
     View,
     TouchableOpacity,
     Image,
+    Modal,
+    TextInput,
+    Alert,
 } from 'react-native';
-import { ArrowLeft, Package, MapPin, CreditCard, User, Calendar } from 'lucide-react-native';
+import { ArrowLeft, Package, MapPin, CreditCard, User, Calendar, Star, Camera, X } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../styles/theme';
+import { useOrderStore } from '../store/useOrderStore';
+import { useReviewStore } from '../store/useReviewStore';
+import { useUserStore } from '../store/useUserStore';
+import Button from '../components/common/Button';
 
 export default function OrderDetailScreen({ route, navigation }: any) {
-    const { order } = route.params;
+    const orders = useOrderStore((state) => state.orders);
+    const user = useUserStore((state) => state.user);
+    const { reviews, addReview } = useReviewStore();
+
+    // Get order from params or find by ID (for deep links)
+    const order = route.params?.order || orders.find(o => o.id.toString() === route.params?.id);
+
+    const isItemReviewed = (productId: number) => {
+        return reviews.some(r => r.productId === productId && r.orderId === order?.id);
+    };
+
+    const [isReviewModalVisible, setIsReviewModalVisible] = useState(false);
+    const [selectedProduct, setSelectedProduct] = useState<any>(null);
+    const [newRating, setNewRating] = useState(5);
+    const [newComment, setNewComment] = useState("");
+
+    const handleBack = () => {
+        if (navigation.canGoBack()) {
+            navigation.goBack();
+        } else {
+            // Fallback to Orders list if opened from deep link
+            navigation.navigate('Tabs', { screen: 'Orders' });
+        }
+    };
+
+    if (!order) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.center}>
+                    <Text style={styles.errorText}>Order not found</Text>
+                    <Button title="Go Back" onPress={handleBack} />
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     const renderHeader = () => (
         <View style={styles.header}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <TouchableOpacity onPress={handleBack} style={styles.backButton}>
                 <ArrowLeft size={24} color={theme.colors.text} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Order Details</Text>
@@ -24,18 +65,66 @@ export default function OrderDetailScreen({ route, navigation }: any) {
         </View>
     );
 
-    const renderOrderItem = (item: any) => (
-        <View key={item.id} style={styles.productRow}>
-            <Image source={{ uri: item.image }} style={styles.productImage} />
-            <View style={styles.productInfo}>
-                <Text style={styles.productTitle} numberOfLines={2}>{item.title}</Text>
-                <View style={styles.priceRow}>
-                    <Text style={styles.productPrice}>${item.price.toFixed(2)}</Text>
-                    <Text style={styles.productQty}>x{item.quantity}</Text>
+    const renderOrderItem = (item: any) => {
+        const reviewed = isItemReviewed(item.id);
+
+        return (
+            <View key={item.id} style={styles.productRowContainer}>
+                <View style={styles.productRow}>
+                    <Image source={{ uri: item.image }} style={styles.productImage} />
+                    <View style={styles.productInfo}>
+                        <Text style={styles.productTitle} numberOfLines={2}>{item.title}</Text>
+                        <View style={styles.priceRow}>
+                            <Text style={styles.productPrice}>${item.price.toFixed(2)}</Text>
+                            <Text style={styles.productQty}>x{item.quantity}</Text>
+                        </View>
+                    </View>
                 </View>
+                <TouchableOpacity
+                    style={[styles.reviewButton, reviewed && styles.reviewedButton]}
+                    disabled={reviewed}
+                    onPress={() => {
+                        setSelectedProduct(item);
+                        setIsReviewModalVisible(true);
+                    }}
+                >
+                    <Star
+                        size={14}
+                        color={reviewed ? theme.colors.success : theme.colors.primary}
+                        fill={reviewed ? theme.colors.success : theme.colors.primary}
+                    />
+                    <Text style={[styles.reviewButtonText, reviewed && styles.reviewedButtonText]}>
+                        {reviewed ? 'Reviewed' : 'Rate & Review'}
+                    </Text>
+                </TouchableOpacity>
             </View>
-        </View>
-    );
+        );
+    };
+
+    const handleAddReview = () => {
+        if (!user) {
+            Alert.alert("Login Required", "Please login to leave a review.");
+            return;
+        }
+
+        if (!newComment.trim()) {
+            Alert.alert("Error", "Please enter a comment.");
+            return;
+        }
+
+        addReview({
+            productId: selectedProduct.id,
+            orderId: order.id,
+            userName: user.name || "Anonymous",
+            rating: newRating,
+            comment: newComment,
+        });
+
+        setNewComment("");
+        setNewRating(5);
+        setIsReviewModalVisible(false);
+        Alert.alert("Success", "Review added successfully!");
+    };
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
@@ -113,6 +202,55 @@ export default function OrderDetailScreen({ route, navigation }: any) {
 
                 <View style={styles.footerSpace} />
             </ScrollView>
+
+            <Modal
+                visible={isReviewModalVisible}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setIsReviewModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Rate this Product</Text>
+                        <Text style={styles.selectedProductTitle} numberOfLines={1}>{selectedProduct?.title}</Text>
+
+                        <View style={styles.ratingPicker}>
+                            {[1, 2, 3, 4, 5].map((s) => (
+                                <TouchableOpacity key={s} onPress={() => setNewRating(s)}>
+                                    <Star
+                                        size={32}
+                                        color={s <= newRating ? "#FFB000" : theme.colors.border}
+                                        fill={s <= newRating ? "#FFB000" : "transparent"}
+                                    />
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <TextInput
+                            style={styles.commentInput}
+                            placeholder="Share your experience..."
+                            placeholderTextColor={theme.colors.textSecondary}
+                            multiline
+                            value={newComment}
+                            onChangeText={setNewComment}
+                        />
+
+                        <View style={styles.modalButtons}>
+                            <Button
+                                title="Cancel"
+                                variant="outline"
+                                onPress={() => setIsReviewModalVisible(false)}
+                                style={{ flex: 1 }}
+                            />
+                            <Button
+                                title="Submit"
+                                onPress={handleAddReview}
+                                style={{ flex: 1 }}
+                            />
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -179,11 +317,90 @@ const styles = StyleSheet.create({
         color: theme.colors.text,
         marginLeft: 4,
     },
-    productRow: {
-        flexDirection: 'row',
-        paddingVertical: theme.spacing.sm,
+    center: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    errorText: {
+        ...theme.typography.body,
+        marginBottom: 20,
+    },
+    productRowContainer: {
         borderBottomWidth: 1,
         borderBottomColor: theme.colors.border,
+        paddingVertical: theme.spacing.sm,
+    },
+    productRow: {
+        flexDirection: 'row',
+    },
+    reviewButton: {
+        backgroundColor: theme.colors.background,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: theme.roundness.md,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 10,
+        gap: 6,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+    },
+    reviewButtonText: {
+        ...theme.typography.caption,
+        fontWeight: 'bold',
+        color: theme.colors.primary,
+    },
+    reviewedButton: {
+        backgroundColor: theme.colors.surface,
+        borderColor: theme.colors.success,
+    },
+    reviewedButtonText: {
+        color: theme.colors.success,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        padding: 20,
+    },
+    modalContent: {
+        backgroundColor: theme.colors.surface,
+        borderRadius: theme.roundness.lg,
+        padding: 24,
+    },
+    modalTitle: {
+        ...theme.typography.h2,
+        textAlign: 'center',
+        marginBottom: 4,
+    },
+    selectedProductTitle: {
+        ...theme.typography.caption,
+        textAlign: 'center',
+        color: theme.colors.textSecondary,
+        marginBottom: 20,
+    },
+    ratingPicker: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: 12,
+        marginBottom: 20,
+    },
+    commentInput: {
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+        borderRadius: theme.roundness.md,
+        padding: 12,
+        height: 100,
+        textAlignVertical: 'top',
+        ...theme.typography.body,
+        marginBottom: 20,
+    },
+    modalButtons: {
+        flexDirection: 'row',
+        gap: 12,
     },
     productImage: {
         width: 60,

@@ -12,6 +12,9 @@ import CameraScreen from "../screens/CameraScreen";
 import OrderDetailScreen from "../screens/OrderDetailScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 
+import notifee, { EventType } from "@notifee/react-native";
+import { Linking } from "react-native";
+
 const Stack = createNativeStackNavigator();
 
 const linking: any = {
@@ -29,6 +32,42 @@ const linking: any = {
       Orders: "orders",
       OrderDetail: "order-detail/:id",
     },
+  },
+  async getInitialURL() {
+    // Check if the app was opened from a notification
+    const initialNotification = await notifee.getInitialNotification();
+    if (initialNotification && initialNotification.notification.data?.screen) {
+      const screen = initialNotification.notification.data.screen;
+      const id = initialNotification.notification.data.id;
+      if (screen === 'OrderDetail' && id) {
+        return `marketplace://order-detail/${id}`;
+      }
+      return `marketplace://${screen.toString().toLowerCase()}`;
+    }
+    // Fallback to standard deep link
+    return Linking.getInitialURL();
+  },
+  subscribe(listener: any) {
+    const onReceiveURL = ({ url }: { url: string }) => listener(url);
+    const subscription = Linking.addEventListener("url", onReceiveURL);
+
+    // Listen for Notifee foreground events
+    const unsubscribeNotifee = notifee.onForegroundEvent(({ type, detail }) => {
+      if (type === EventType.PRESS && detail.notification?.data?.screen) {
+        const screen = detail.notification.data.screen;
+        const id = detail.notification.data.id;
+        if (screen === 'OrderDetail' && id) {
+          listener(`marketplace://order-detail/${id}`);
+        } else {
+          listener(`marketplace://${screen.toString().toLowerCase()}`);
+        }
+      }
+    });
+
+    return () => {
+      subscription.remove();
+      unsubscribeNotifee();
+    };
   },
 };
 

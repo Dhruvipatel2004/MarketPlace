@@ -6,12 +6,9 @@ import {
   TouchableOpacity,
   View,
   ScrollView,
-  Modal,
-  TextInput,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ShoppingCart, ArrowLeft, Heart, Star, User as UserIcon, Camera as CameraIcon, X } from 'lucide-react-native';
+import { ShoppingCart, ArrowLeft, Heart, Star, User as UserIcon } from 'lucide-react-native';
 import { theme } from "../styles/theme";
 import Button from "../components/common/Button";
 import Badge from "../components/common/Badge";
@@ -19,7 +16,6 @@ import { useCartStore } from "../store/useCartStore";
 import { useWishlistStore } from "../store/useWishlistStore";
 import { useReviewStore } from "../store/useReviewStore";
 import { useUserStore } from "../store/useUserStore";
-import { launchImageLibrary } from 'react-native-image-picker';
 
 export default function ProductDetails({ route, navigation }: any) {
   const product = route.params?.product;
@@ -50,86 +46,11 @@ export default function ProductDetails({ route, navigation }: any) {
   const addReview = useReviewStore((state) => state.addReview);
   const user = useUserStore((state) => state.user);
 
-  const [isReviewModalVisible, setIsReviewModalVisible] = useState(false);
-  const [newRating, setNewRating] = useState(5);
-  const [newComment, setNewComment] = useState("");
-  const [reviewImages, setReviewImages] = useState<string[]>([]);
-
-  const capturedImage = route.params?.capturedImage;
-
-  React.useEffect(() => {
-    if (capturedImage) {
-      setReviewImages(prev => [...prev.slice(-2), capturedImage]);
-      navigation.setParams({ capturedImage: undefined });
-      setIsReviewModalVisible(true); // Re-open modal to show new photo
-    }
-  }, [capturedImage, navigation]);
-
   const isItemWishlisted = wishlist.some(w => w.id === product.id);
 
   const onAddToCart = useCallback(() => {
     addToCart(product);
   }, [addToCart, product]);
-
-  const handleImagePick = () => {
-    Alert.alert(
-      "Add Photo",
-      "Choose a source",
-      [
-        {
-          text: "Camera",
-          onPress: () => navigation.navigate("Camera", {
-            source: 'reviews',
-            product: product
-          })
-        },
-        {
-          text: "Gallery",
-          onPress: async () => {
-            const result = await launchImageLibrary({
-              mediaType: 'photo',
-              quality: 0.8,
-              selectionLimit: 3 - reviewImages.length,
-            });
-            if (result.assets) {
-              const uris = result.assets.map(a => a.uri).filter(Boolean) as string[];
-              setReviewImages(prev => [...prev, ...uris].slice(-3));
-            }
-          }
-        },
-        { text: "Cancel", style: "cancel" }
-      ]
-    );
-  };
-
-  const handleAddReview = () => {
-    if (!user) {
-      Alert.alert("Login Required", "Please login to leave a review.", [
-        { text: "Cancel", style: "cancel" },
-        { text: "Login", onPress: () => navigation.navigate("Login") }
-      ]);
-      return;
-    }
-
-    if (!newComment.trim()) {
-      Alert.alert("Error", "Please enter a comment.");
-      return;
-    }
-
-    addReview({
-      productId: product.id,
-      userName: user.name || "Anonymous",
-      rating: newRating,
-      comment: newComment,
-      images: reviewImages,
-    });
-
-    setNewComment("");
-    setNewRating(5);
-    setReviewImages([]);
-    setIsReviewModalVisible(false);
-    Alert.alert("Success", "Review added successfully!");
-  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -185,9 +106,6 @@ export default function ProductDetails({ route, navigation }: any) {
           <View style={styles.reviewsSection}>
             <View style={styles.reviewsHeader}>
               <Text style={styles.descriptionHeader}>Customer Reviews ({reviews.length})</Text>
-              <TouchableOpacity onPress={() => setIsReviewModalVisible(true)}>
-                <Text style={styles.addReviewLink}>Write a Review</Text>
-              </TouchableOpacity>
             </View>
 
             {reviews.length > 0 ? (
@@ -242,78 +160,6 @@ export default function ProductDetails({ route, navigation }: any) {
         />
       </View>
 
-      <Modal
-        visible={isReviewModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setIsReviewModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <ScrollView contentContainerStyle={styles.modalScroll}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Write a Review</Text>
-
-              <Text style={styles.label}>Rating</Text>
-              <View style={styles.ratingPicker}>
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <TouchableOpacity key={s} onPress={() => setNewRating(s)}>
-                    <Star
-                      size={32}
-                      color={s <= newRating ? "#FFB000" : theme.colors.border}
-                      fill={s <= newRating ? "#FFB000" : "transparent"}
-                    />
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={styles.label}>Your Comment</Text>
-              <TextInput
-                style={styles.commentInput}
-                placeholder="Tell us what you think..."
-                placeholderTextColor={theme.colors.textSecondary}
-                multiline
-                numberOfLines={4}
-                value={newComment}
-                onChangeText={setNewComment}
-              />
-
-              <Text style={styles.label}>Photos (Optional)</Text>
-              <View style={styles.imagePickerRow}>
-                {reviewImages.map((img, idx) => (
-                  <View key={idx} style={styles.pickedImageWrapper}>
-                    <Image source={{ uri: img }} style={styles.pickedImage} />
-                    <TouchableOpacity
-                      style={styles.removeImageIcon}
-                      onPress={() => setReviewImages(prev => prev.filter((_, i) => i !== idx))}
-                    >
-                      <X size={12} color={theme.colors.white} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-                {reviewImages.length < 3 && (
-                  <TouchableOpacity style={styles.imageUploadBtn} onPress={handleImagePick}>
-                    <CameraIcon size={24} color={theme.colors.textSecondary} />
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              <View style={styles.modalButtons}>
-                <Button
-                  title="Cancel"
-                  variant="outline"
-                  onPress={() => setIsReviewModalVisible(false)}
-                  style={styles.modalButton}
-                />
-                <Button
-                  title="Submit"
-                  onPress={handleAddReview}
-                  style={styles.modalButton}
-                />
-              </View>
-            </View>
-          </ScrollView>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }

@@ -161,7 +161,12 @@ export default function CheckoutScreen() {
                                                     });
 
                                                     if (response.data && response.data.display_name) {
-                                                        setFieldValue('address', response.data.display_name);
+                                                        let fullAddress = response.data.display_name;
+
+                                                        // Clean up: Remove ", India" from the end if present
+                                                        fullAddress = fullAddress.replace(/, India$/, '');
+
+                                                        setFieldValue('address', fullAddress);
                                                     } else {
                                                         setFieldValue('address', `Lat: ${location.latitude.toFixed(4)}, Lon: ${location.longitude.toFixed(4)}`);
                                                     }

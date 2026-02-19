@@ -6,7 +6,7 @@ import { theme } from '../styles/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function CameraScreen({ navigation, route }: any) {
-    const { source } = route.params || {};
+    const { source, product } = route.params || {};
     const { hasPermission, requestPermission } = useCameraPermission();
     const device = useCameraDevice('back');
     const camera = useRef<Camera>(null);
@@ -39,7 +39,7 @@ export default function CameraScreen({ navigation, route }: any) {
             if (source === 'profile') {
                 navigation.navigate('Profile', { capturedImage: photo });
             } else if (source === 'reviews') {
-                navigation.navigate('ProductDetails', { capturedImage: photo });
+                navigation.navigate('Details', { capturedImage: photo, product });
             } else {
                 navigation.goBack();
             }

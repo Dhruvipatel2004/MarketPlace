@@ -15,14 +15,17 @@ export default function CustomHeader({ title, showBack = true }: CustomHeaderPro
     <View style={styles.headerContainer}>
       <View style={styles.leftContainer}>
         {showBack && (
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Tabs' as never)}
+            style={styles.backButton}
+          >
             <ChevronLeft color="#000" size={28} />
           </TouchableOpacity>
         )}
       </View>
-      
+
       <Text style={styles.title} numberOfLines={1}>{title}</Text>
-      
+
       <View style={styles.rightContainer} />
     </View>
   );

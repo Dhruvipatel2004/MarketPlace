@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import React, { useCallback } from 'react';
 import {
     FlatList,
@@ -5,7 +6,6 @@ import {
     Text,
     TouchableOpacity,
     View,
-    SafeAreaView
 } from 'react-native';
 import { ArrowLeft, ArchiveX } from 'lucide-react-native';
 import { theme } from '../styles/theme';
@@ -13,6 +13,7 @@ import ProductCard from '../components/common/ProductCard';
 import EmptyState from '../components/common/EmptyState';
 import { useWishlistStore } from '../store/useWishlistStore';
 import { useCartStore } from '../store/useCartStore';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function WishlistScreen({ navigation }: any) {
     const wishlist = useWishlistStore((state) => state.wishlist);

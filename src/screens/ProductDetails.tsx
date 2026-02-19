@@ -22,7 +22,20 @@ import { useUserStore } from "../store/useUserStore";
 import { launchImageLibrary } from 'react-native-image-picker';
 
 export default function ProductDetails({ route, navigation }: any) {
-  const { product } = route.params;
+  const product = route.params?.product;
+
+  // Early return if product is missing (though our fix should prevent this)
+  if (!product) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.center}>
+          <Text>Product not found</Text>
+          <Button title="Go Back" onPress={() => navigation.goBack()} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const cart = useCartStore((state) => state.cart);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const addToCart = useCartStore((state) => state.addToCart);
@@ -66,7 +79,8 @@ export default function ProductDetails({ route, navigation }: any) {
         {
           text: "Camera",
           onPress: () => navigation.navigate("Camera", {
-            source: 'reviews'
+            source: 'reviews',
+            product: product
           })
         },
         {
@@ -163,7 +177,7 @@ export default function ProductDetails({ route, navigation }: any) {
               />
             </TouchableOpacity>
           </View>
-          <Text style={styles.price}>${product.price ? product.price.toFixed(2) : '0.00'}</Text>
+          <Text style={styles.price}>${product?.price ? product.price.toFixed(2) : '0.00'}</Text>
 
           <Text style={styles.descriptionHeader}>Description</Text>
           <Text style={styles.description}>{product.description}</Text>
@@ -256,6 +270,7 @@ export default function ProductDetails({ route, navigation }: any) {
               <TextInput
                 style={styles.commentInput}
                 placeholder="Tell us what you think..."
+                placeholderTextColor={theme.colors.textSecondary}
                 multiline
                 numberOfLines={4}
                 value={newComment}
@@ -307,6 +322,12 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.surface,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: theme.spacing.xl,
   },
   header: {
     flexDirection: 'row',

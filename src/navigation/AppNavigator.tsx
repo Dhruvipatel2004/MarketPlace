@@ -14,9 +14,27 @@ import SettingsScreen from "../screens/SettingsScreen";
 
 const Stack = createNativeStackNavigator();
 
+const linking: any = {
+  prefixes: ["marketplace://"],
+  config: {
+    screens: {
+      Tabs: {
+        screens: {
+          Home: "home",
+          Cart: "cart",
+          Profile: "profile",
+        },
+      },
+      Details: "details/:id",
+      Orders: "orders",
+      OrderDetail: "order-detail/:id",
+    },
+  },
+};
+
 export default function AppNavigator() {
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <Stack.Navigator
         initialRouteName="Login"
         screenOptions={{

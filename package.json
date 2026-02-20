@@ -7,7 +7,9 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "build:android": "eas build --platform android --profile preview",
+    "build:android:prod": "eas build --platform android --profile production"
   },
   "dependencies": {
     "@notifee/react-native": "^9.1.8",

@@ -44,8 +44,34 @@ react {
     // extraPackagerArgs = []
 
     /* Hermes Commands */
-    //   The hermes compiler command to run. By default it is 'hermesc'
-    // hermesCommand = "$rootDir/my-custom-hermesc/bin/hermesc"
+    //   Check multiple locations for hermesc on Windows
+    def projectRoot = file("$rootDir/../..")
+    def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
+    def hermescExe = isWindows ? "hermesc.exe" : "hermesc"
+    
+    // Try multiple locations
+    def hermescPaths = []
+    if (isWindows) {
+        // 1. hermes-compiler package location
+        hermescPaths.add(new File(projectRoot, "node_modules/hermes-compiler/hermesc/win64-bin/${hermescExe}"))
+        // 2. React Native Android build output (if hermes-engine was built)
+        hermescPaths.add(new File(projectRoot, "node_modules/react-native/ReactAndroid/hermes-engine/build/hermes/bin/${hermescExe}"))
+        // 3. Alternative React Native build location
+        hermescPaths.add(new File(projectRoot, "node_modules/react-native/sdks/hermes/build/bin/${hermescExe}"))
+    } else {
+        def osBin = System.getProperty("os.name").toLowerCase().contains("mac") ? "osx-bin" : "linux64-bin"
+        hermescPaths.add(new File(projectRoot, "node_modules/hermes-compiler/hermesc/${osBin}/${hermescExe}"))
+    }
+    
+    // Use first existing path
+    def foundHermesc = hermescPaths.find { it.exists() }
+    if (foundHermesc) {
+        hermesCommand = foundHermesc.absolutePath.replace(File.separatorChar, '/' as char)
+    } else if (isWindows) {
+        // On Windows, if not found, provide helpful error by trying to set a path that will fail clearly
+        // The React Native plugin will show a better error message
+        println("WARNING: hermesc.exe not found. The build will fail. Run: .\\scripts\\ensure-hermesc-windows.ps1")
+    }
     //
     //   The list of flags to pass to the Hermes compiler. By default is "-O", "-output-source-map"
     // hermesFlags = ["-O", "-output-source-map"]
@@ -84,6 +110,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        manifestPlaceholders = [usesCleartextTraffic: "true"]
     }
     signingConfigs {
         debug {
@@ -92,6 +119,12 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+         release {
+        storeFile file(MYAPP_UPLOAD_STORE_FILE)
+        storePassword MYAPP_UPLOAD_STORE_PASSWORD
+        keyAlias MYAPP_UPLOAD_KEY_ALIAS
+        keyPassword MYAPP_UPLOAD_KEY_PASSWORD
+    }
     }
     buildTypes {
         debug {
@@ -100,9 +133,52 @@ android {
         release {
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+        }
+    }
+}
+
+// Task to ensure hermesc exists before bundle task runs
+if (hermesEnabled.toBoolean() && System.getProperty("os.name").toLowerCase().contains("win")) {
+    def projectRoot = file("$rootDir/../..")
+    def hermescExe = "hermesc.exe"
+    def hermescTargetPath = new File(projectRoot, "node_modules/hermes-compiler/hermesc/win64-bin/${hermescExe}")
+    
+    tasks.whenTaskAdded { task ->
+        if (task.name.contains("createBundle") && task.name.contains("Release")) {
+            task.dependsOn(tasks.register("checkHermescWindows") {
+                doLast {
+                    if (!hermescTargetPath.exists()) {
+                        def hermescDir = hermescTargetPath.parentFile
+                        if (!hermescDir.exists()) {
+                            hermescDir.mkdirs()
+                        }
+                        throw new GradleException(
+                            "\n" +
+                            "=================================================================\n" +
+                            "ERROR: hermesc.exe is required for Windows release builds.\n" +
+                            "=================================================================\n" +
+                            "\n" +
+                            "QUICK FIX - Build from WSL (Linux):\n" +
+                            "  1. Open WSL (Windows Subsystem for Linux)\n" +
+                            "  2. cd /mnt/e/MarketPlace/android\n" +
+                            "  3. ./gradlew assembleRelease\n" +
+                            "\n" +
+                            "OR - Get hermesc.exe:\n" +
+                            "  1. Run: .\\scripts\\ensure-hermesc-windows.ps1\n" +
+                            "  2. Build hermesc from source (requires Visual Studio + CMake)\n" +
+                            "     See: https://github.com/facebook/hermes/blob/main/doc/BuildingAndRunning.md\n" +
+                            "  3. Place hermesc.exe in:\n" +
+                            "     ${hermescTargetPath.absolutePath}\n" +
+                            "\n" +
+                            "Folder created at: ${hermescDir.absolutePath}\n" +
+                            "=================================================================\n"
+                        )
+                    }
+                }
+            })
         }
     }
 }

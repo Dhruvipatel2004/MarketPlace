@@ -1,4 +1,14 @@
 {
   "name": "MarketPlace",
-  "displayName": "MarketPlace"
+  "displayName": "MarketPlace",
+  "slug": "marketplace",
+  "version": "1.0.0",
+  "android": {
+    "package": "com.marketplace"
+  },
+  "extra": {
+    "eas": {
+      "projectId": "2eab75fd-8568-427a-840c-de992e08e374"
+    }
+  }
 }

@@ -8,7 +8,9 @@ const queryClient = new QueryClient();
 
 export default function App() {
   useEffect(() => {
-    notificationService.initialize();
+    notificationService.initialize().catch((err) => {
+      if (__DEV__) console.warn('NotificationService init failed:', err);
+    });
   }, []);
 
   return (

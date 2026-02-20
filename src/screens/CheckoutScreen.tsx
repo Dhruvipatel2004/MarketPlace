@@ -1,4 +1,5 @@
-import React, { useMemo } from "react";
+/* eslint-disable react-native/no-inline-styles */
+import React from "react";
 import { useNavigation } from "@react-navigation/native";
 import { Formik } from "formik";
 import {
@@ -10,25 +11,29 @@ import {
     KeyboardAvoidingView,
     Platform,
     TouchableOpacity,
+    StatusBar,
+    TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ArrowLeft, MapPin, Phone, User, CreditCard, ShieldCheck } from 'lucide-react-native';
 import * as Yup from 'yup';
-import CustomHeader from "../components/CustomHeader";
 import { theme } from "../styles/theme";
-import Input from "../components/common/Input";
 import Button from "../components/common/Button";
 import { useCartStore } from "../store/useCartStore";
 import { useOrderStore } from "../store/useOrderStore";
 import GetLocation from 'react-native-get-location';
 import ReactNativeHapticFeedback from "react-native-haptic-feedback";
 import axios from 'axios';
-
 import { notificationService } from "../utils/NotificationService";
 
 const hapticOptions = {
     enableVibrateFallback: true,
     ignoreAndroidSystemSettings: false,
 };
+
+// Stable icon constants — never recreated, keeps React.memo on Input working
+const UserFieldIcon = <User size={18} color={theme.colors.textSecondary} />;
+const PhoneFieldIcon = <Phone size={18} color={theme.colors.textSecondary} />;
 
 const validationSchema = Yup.object({
     name: Yup.string().required('Name is Required'),
@@ -43,24 +48,25 @@ export default function CheckoutScreen() {
     const clearCart = useCartStore((state) => state.clearCart);
     const addOrder = useOrderStore((state) => state.addOrder);
 
+    const tax = totalPrice * 0.08;
+    const finalTotal = totalPrice + tax;
+
     const handlePlaceOrder = async (values: any, { setSubmitting }: any) => {
         try {
             const newOrder = {
                 id: Date.now(),
                 items: cart,
-                total: totalPrice,
+                total: finalTotal,
                 date: new Date().toISOString(),
                 shippingDetails: values
             };
 
-            // Trigger Immediate Notification
             notificationService.displayImmediateNotification(
                 "Order Placed! 🎉",
-                `Thanks ${values.name}, your order for $${totalPrice.toFixed(2)} is being processed.`,
+                `Thanks ${values.name}, your order for $${finalTotal.toFixed(2)} is being processed.`,
                 { screen: 'Orders' }
             );
 
-            // Schedule Experience Review (30 seconds later for practice)
             notificationService.scheduleNotification(
                 "How was your experience?",
                 "Tell us what you think of the MarketPlace app!",
@@ -72,11 +78,11 @@ export default function CheckoutScreen() {
             ReactNativeHapticFeedback.trigger("notificationSuccess", hapticOptions);
 
             Alert.alert(
-                "Success",
-                "Your order has been placed successfully!",
+                "Order Confirmed!",
+                "Your premium order has been successfully placed.",
                 [
                     {
-                        text: "OK",
+                        text: "Done",
                         onPress: () => {
                             clearCart();
                             navigation.replace("Tabs");
@@ -91,177 +97,250 @@ export default function CheckoutScreen() {
         }
     };
 
-    const orderSummary = useMemo(() => {
-        return cart.map((item) => (
-            <View key={item.id} style={styles.summaryItem}>
-                <Text style={styles.itemTitle} numberOfLines={1}>
-                    {item.title} <Text style={styles.itemQuantity}>x{item.quantity}</Text>
-                </Text>
-                <Text style={styles.itemPrice}>${(item.price * item.quantity).toFixed(2)}</Text>
-            </View>
-        ));
-    }, [cart]);
-
     return (
-        <SafeAreaView style={styles.safeArea} edges={['top']}>
-            <CustomHeader title="Checkout" />
-            <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-                style={styles.keyboardView}
-            >
-                <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Order Summary</Text>
-                        <View style={styles.summaryCard}>
-                            {orderSummary}
-                            <View style={styles.divider} />
-                            <View style={styles.totalRow}>
-                                <Text style={styles.totalLabel}>Grand Total</Text>
-                                <Text style={styles.totalAmount}>${totalPrice.toFixed(2)}</Text>
+        <View style={styles.mainContainer}>
+            <StatusBar barStyle="dark-content" />
+            <SafeAreaView style={styles.safeArea} edges={['top']}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                        <ArrowLeft size={22} color={theme.colors.text} />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Checkout</Text>
+                    <View style={{ width: 44 }} />
+                </View>
+
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === "ios" ? "padding" : "height"}
+                    style={styles.keyboardView}
+                >
+                    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Summary</Text>
+                            <View style={styles.summaryCard}>
+                                {cart.map((item) => (
+                                    <View key={item.id} style={styles.summaryItem}>
+                                        <Text style={styles.itemTitle} numberOfLines={1}>
+                                            {item.title} <Text style={styles.itemQuantity}>x{item.quantity}</Text>
+                                        </Text>
+                                        <Text style={styles.itemPrice}>${(item.price * item.quantity).toFixed(2)}</Text>
+                                    </View>
+                                ))}
+                                <View style={styles.divider} />
+                                <View style={styles.summaryRow}>
+                                    <Text style={styles.summaryLabel}>Subtotal</Text>
+                                    <Text style={styles.summaryValue}>${totalPrice.toFixed(2)}</Text>
+                                </View>
+                                <View style={styles.summaryRow}>
+                                    <Text style={styles.summaryLabel}>Tax (8%)</Text>
+                                    <Text style={styles.summaryValue}>${tax.toFixed(2)}</Text>
+                                </View>
+                                <View style={[styles.summaryRow, { marginTop: 8 }]}>
+                                    <Text style={styles.totalLabel}>Total</Text>
+                                    <Text style={styles.totalAmount}>${finalTotal.toFixed(2)}</Text>
+                                </View>
                             </View>
                         </View>
-                    </View>
 
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Shipping Details</Text>
-                        <Formik
-                            initialValues={{ name: "", phone: "", address: "" }}
-                            validationSchema={validationSchema}
-                            onSubmit={handlePlaceOrder}
-                        >
-                            {({
-                                handleChange, handleBlur, handleSubmit, values, errors, touched, isSubmitting, setFieldValue
-                            }: any) => (
-                                <View style={styles.form}>
-                                    <Input
-                                        label="Full Name"
-                                        placeholder="John Doe"
-                                        value={values.name}
-                                        onChangeText={handleChange('name')}
-                                        onBlur={handleBlur("name")}
-                                        error={touched.name && errors.name ? errors.name : undefined}
-                                    />
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Delivery Details</Text>
+                            <Formik
+                                initialValues={{ name: "", phone: "", address: "" }}
+                                validationSchema={validationSchema}
+                                onSubmit={handlePlaceOrder}
+                            >
+                                {({
+                                    handleSubmit, values, errors, touched, isSubmitting, setFieldValue, setFieldTouched
+                                }: any) => (
+                                    <View style={styles.formCard}>
+                                        <View style={styles.fieldContainer}>
+                                            <Text style={styles.fieldLabel}>Full Name</Text>
+                                            <View style={[
+                                                styles.inputWrapper,
+                                                touched.name && errors.name ? styles.inputWrapperError : null,
+                                            ]}>
+                                                <View style={styles.leftIcon}>
+                                                    {UserFieldIcon}
+                                                </View>
+                                                <TextInput
+                                                    style={styles.input}
+                                                    placeholder="John Doe"
+                                                    placeholderTextColor="#9CA3AF"
+                                                    value={values.name}
+                                                    onChangeText={(text) => setFieldValue('name', text)}
+                                                    onBlur={() => setFieldTouched('name')}
+                                                />
+                                            </View>
+                                            {touched.name && errors.name ? (
+                                                <Text style={styles.errorText}>{errors.name}</Text>
+                                            ) : null}
+                                        </View>
 
-                                    <Input
-                                        label="Phone Number"
-                                        placeholder="10 digit mobile number"
-                                        value={values.phone}
-                                        keyboardType="phone-pad"
-                                        onChangeText={handleChange("phone")}
-                                        onBlur={handleBlur("phone")}
-                                        maxLength={10}
-                                        error={touched.phone && errors.phone ? errors.phone : undefined}
-                                    />
+                                        <View style={styles.fieldContainer}>
+                                            <Text style={styles.fieldLabel}>Phone Number</Text>
+                                            <View style={[
+                                                styles.inputWrapper,
+                                                touched.phone && errors.phone ? styles.inputWrapperError : null,
+                                            ]}>
+                                                <View style={styles.leftIcon}>
+                                                    {PhoneFieldIcon}
+                                                </View>
+                                                <TextInput
+                                                    style={styles.input}
+                                                    placeholder="10 digit mobile number"
+                                                    placeholderTextColor="#9CA3AF"
+                                                    value={values.phone}
+                                                    keyboardType="phone-pad"
+                                                    onChangeText={(text) => setFieldValue('phone', text)}
+                                                    onBlur={() => setFieldTouched('phone')}
+                                                    maxLength={10}
+                                                />
+                                            </View>
+                                            {touched.phone && errors.phone ? (
+                                                <Text style={styles.errorText}>{errors.phone}</Text>
+                                            ) : null}
+                                        </View>
 
-                                    <View style={styles.addressLabelRow}>
-                                        <Text style={styles.label}>Delivery Address</Text>
-                                        <TouchableOpacity
-                                            onPress={async () => {
-                                                try {
-                                                    const location = await GetLocation.getCurrentPosition({
-                                                        enableHighAccuracy: true,
-                                                        timeout: 15000,
-                                                    });
-
-                                                    ReactNativeHapticFeedback.trigger("impactMedium", hapticOptions);
-
-                                                    // Reverse Geocoding using Nominatim (OpenStreetMap)
-                                                    const response = await axios.get(`https://nominatim.openstreetmap.org/reverse`, {
-                                                        params: {
-                                                            format: 'jsonv2',
-                                                            lat: location.latitude,
-                                                            lon: location.longitude,
-                                                        },
-                                                        headers: {
-                                                            'User-Agent': 'MarketPlaceApp/1.0'
+                                        <View style={styles.addressLabelRow}>
+                                            <Text style={styles.inputLabel}>Delivery Address</Text>
+                                            <TouchableOpacity
+                                                style={styles.locationTag}
+                                                onPress={async () => {
+                                                    try {
+                                                        const location = await GetLocation.getCurrentPosition({
+                                                            enableHighAccuracy: true,
+                                                            timeout: 15000,
+                                                        });
+                                                        ReactNativeHapticFeedback.trigger("impactMedium", hapticOptions);
+                                                        const response = await axios.get(`https://nominatim.openstreetmap.org/reverse`, {
+                                                            params: { format: 'jsonv2', lat: location.latitude, lon: location.longitude },
+                                                            headers: { 'User-Agent': 'MarketPlaceApp/1.0' }
+                                                        });
+                                                        if (response.data && response.data.display_name) {
+                                                            setFieldValue('address', response.data.display_name.replace(/, India$/, ''));
                                                         }
-                                                    });
-
-                                                    if (response.data && response.data.display_name) {
-                                                        let fullAddress = response.data.display_name;
-
-                                                        // Clean up: Remove ", India" from the end if present
-                                                        fullAddress = fullAddress.replace(/, India$/, '');
-
-                                                        setFieldValue('address', fullAddress);
-                                                    } else {
-                                                        setFieldValue('address', `Lat: ${location.latitude.toFixed(4)}, Lon: ${location.longitude.toFixed(4)}`);
+                                                    } catch {
+                                                        Alert.alert("Error", "Could not fetch location.");
                                                     }
-                                                } catch (error) {
-                                                    console.error("Location error:", error);
-                                                    Alert.alert("Error", "Could not fetch your location or address. Please check your permissions.");
-                                                }
-                                            }}
-                                        >
-                                            <Text style={styles.locationLink}>Auto-fill Location</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                    <Input
-                                        placeholder="Flat/House No, Street, Area"
-                                        multiline
-                                        numberOfLines={4}
-                                        value={values.address}
-                                        onChangeText={handleChange("address")}
-                                        onBlur={handleBlur("address")}
-                                        error={touched.address && errors.address ? errors.address : undefined}
-                                        style={styles.textArea}
-                                    />
+                                                }}
+                                            >
+                                                <MapPin size={12} color={theme.colors.primary} />
+                                                <Text style={styles.locationText}>Use Current</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                        <View style={styles.fieldContainer}>
+                                            <View style={[
+                                                styles.inputWrapper,
+                                                styles.textAreaWrapper,
+                                                touched.address && errors.address ? styles.inputWrapperError : null,
+                                            ]}>
+                                                <TextInput
+                                                    style={[styles.input, styles.textAreaInput]}
+                                                    placeholder="Flat/House No, Street, Area"
+                                                    placeholderTextColor="#9CA3AF"
+                                                    multiline
+                                                    numberOfLines={4}
+                                                    value={values.address}
+                                                    onChangeText={(text) => setFieldValue('address', text)}
+                                                    onBlur={() => setFieldTouched('address')}
+                                                />
+                                            </View>
+                                            {touched.address && errors.address ? (
+                                                <Text style={styles.errorText}>{errors.address}</Text>
+                                            ) : null}
+                                        </View>
 
-                                    <Button
-                                        title="Confirm Order"
-                                        onPress={handleSubmit as any}
-                                        loading={isSubmitting}
-                                        style={styles.button}
-                                        size="large"
-                                    />
-                                </View>
-                            )}
-                        </Formik>
-                    </View>
-                </ScrollView>
-            </KeyboardAvoidingView>
-        </SafeAreaView>
+                                        <View style={styles.paymentHighlight}>
+                                            <CreditCard size={20} color={theme.colors.primary} />
+                                            <View>
+                                                <Text style={styles.paymentTitle}>Cash on Delivery</Text>
+                                                <Text style={styles.paymentSubtitle}>Pay when you receive the product</Text>
+                                            </View>
+                                            <ShieldCheck size={20} color={theme.colors.success} style={{ marginLeft: 'auto' }} />
+                                        </View>
+
+                                        <Button
+                                            title="Confirm & Place Order"
+                                            onPress={handleSubmit as any}
+                                            loading={isSubmitting}
+                                            style={styles.confirmBtn}
+                                            size="large"
+                                        />
+                                    </View>
+                                )}
+                            </Formik>
+                        </View>
+                    </ScrollView>
+                </KeyboardAvoidingView>
+            </SafeAreaView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    safeArea: {
+    mainContainer: {
         flex: 1,
         backgroundColor: theme.colors.background,
+    },
+    safeArea: {
+        flex: 1,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: theme.spacing.md,
+        paddingVertical: theme.spacing.sm,
+        backgroundColor: theme.colors.white,
+    },
+    backBtn: {
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        backgroundColor: '#F9FAFB',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    headerTitle: {
+        ...theme.typography.h2,
+        fontSize: 20,
     },
     keyboardView: {
         flex: 1,
     },
     container: {
-        padding: theme.spacing.md,
-        paddingBottom: theme.spacing.xl,
+        padding: theme.spacing.lg,
+        paddingBottom: 60,
     },
     section: {
-        marginBottom: theme.spacing.lg,
+        marginBottom: 24,
     },
     sectionTitle: {
-        ...theme.typography.body,
-        fontWeight: 'bold',
-        marginBottom: theme.spacing.md,
-        color: theme.colors.text,
+        fontSize: 14,
+        fontWeight: '800',
+        color: theme.colors.textSecondary,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginBottom: 12,
+        marginLeft: 4,
     },
     summaryCard: {
-        backgroundColor: theme.colors.surface,
-        borderRadius: theme.roundness.lg,
-        padding: theme.spacing.md,
-        shadowColor: theme.colors.shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        backgroundColor: theme.colors.white,
+        borderRadius: 24,
+        padding: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        elevation: 2,
     },
     summaryItem: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: theme.spacing.sm,
+        marginBottom: 12,
     },
     itemTitle: {
-        ...theme.typography.caption,
+        fontSize: 14,
+        fontWeight: '600',
         color: theme.colors.text,
         flex: 1,
         marginRight: 10,
@@ -271,61 +350,143 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     itemPrice: {
-        ...theme.typography.caption,
-        fontWeight: '600',
+        fontSize: 14,
+        fontWeight: '700',
     },
     divider: {
         height: 1,
-        backgroundColor: theme.colors.border,
-        marginVertical: theme.spacing.sm,
+        backgroundColor: '#F3F4F6',
+        marginVertical: 12,
     },
-    totalRow: {
+    summaryRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        marginBottom: 6,
+    },
+    summaryLabel: {
+        fontSize: 14,
+        color: theme.colors.textSecondary,
+    },
+    summaryValue: {
+        fontSize: 14,
+        fontWeight: '700',
     },
     totalLabel: {
-        ...theme.typography.body,
-        fontWeight: 'bold',
+        fontSize: 18,
+        fontWeight: '800',
     },
     totalAmount: {
-        ...theme.typography.h2,
+        fontSize: 22,
+        fontWeight: '900',
         color: theme.colors.primary,
     },
-    form: {
-        backgroundColor: theme.colors.surface,
-        borderRadius: theme.roundness.lg,
-        padding: theme.spacing.md,
-        shadowColor: theme.colors.shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+    formCard: {
+        backgroundColor: theme.colors.white,
+        borderRadius: 24,
+        padding: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        elevation: 2,
     },
-    textArea: {
-        height: 100,
+    fieldContainer: {
+        marginBottom: theme.spacing.lg,
+    },
+    fieldLabel: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: theme.colors.text,
+        marginBottom: 8,
+    },
+    inputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F9FAFB',
+        borderWidth: 1.5,
+        borderColor: '#F3F4F6',
+        borderRadius: 16,
+        paddingHorizontal: theme.spacing.md,
+        height: 56,
+    },
+    textAreaWrapper: {
+        height: 110,
+        paddingTop: 12,
+        alignItems: 'flex-start',
+    },
+    inputWrapperError: {
+        borderColor: theme.colors.error,
+        backgroundColor: '#FFF5F5',
+    },
+    leftIcon: {
+        marginRight: theme.spacing.sm,
+        marginTop: 2,
+    },
+    input: {
+        flex: 1,
+        height: '100%',
+        fontSize: 16,
+        color: theme.colors.text,
+        fontWeight: '500',
+    },
+    textAreaInput: {
         textAlignVertical: 'top',
-        borderColor: theme.colors.border,
-        borderWidth: 1,
-        borderRadius: theme.roundness.lg,
     },
-    button: {
-        marginTop: theme.spacing.sm,
+    errorText: {
+        ...theme.typography.caption,
+        color: theme.colors.error,
+        marginTop: theme.spacing.xs,
+        fontWeight: '500',
+    },
+    inputLabel: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: theme.colors.text,
+        marginBottom: 8,
     },
     addressLabelRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: theme.spacing.xs,
+        marginBottom: 8,
     },
-    label: {
-        ...theme.typography.body,
-        fontWeight: 'bold',
+    locationTag: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        backgroundColor: theme.colors.primary + '10',
+        borderRadius: 8,
+    },
+    locationText: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: theme.colors.primary,
+        textTransform: 'uppercase',
+    },
+    paymentHighlight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F9FAFB',
+        padding: 16,
+        borderRadius: 16,
+        gap: 12,
+        marginVertical: 16,
+        borderWidth: 1,
+        borderColor: '#F3F4F6',
+    },
+    paymentTitle: {
+        fontSize: 14,
+        fontWeight: '700',
         color: theme.colors.text,
     },
-    locationLink: {
-        ...theme.typography.caption,
-        color: theme.colors.primary,
-        fontWeight: 'bold',
+    paymentSubtitle: {
+        fontSize: 11,
+        color: theme.colors.textSecondary,
+    },
+    confirmBtn: {
+        height: 56,
+        borderRadius: 16,
     },
 });

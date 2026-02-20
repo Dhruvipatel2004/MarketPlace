@@ -6,8 +6,9 @@ import {
     Text,
     TouchableOpacity,
     View,
+    StatusBar
 } from 'react-native';
-import { ArrowLeft, ArchiveX } from 'lucide-react-native';
+import { ArrowLeft, Heart  } from 'lucide-react-native';
 import { theme } from '../styles/theme';
 import ProductCard from '../components/common/ProductCard';
 import EmptyState from '../components/common/EmptyState';
@@ -21,72 +22,89 @@ export default function WishlistScreen({ navigation }: any) {
     const addToCart = useCartStore((state) => state.addToCart);
 
     const renderItem = useCallback(({ item }: { item: any }) => (
-        <ProductCard
-            product={item}
-            onPress={() => navigation.navigate("Details", { product: item })}
-            onWishlistToggle={() => toggleWishlist(item)}
-            isWishlisted={wishlist.some(w => w.id === item.id)}
-            variant="list"
-            onAddToCart={() => addToCart(item)}
-        />
+        <View style={styles.cardContainer}>
+            <ProductCard
+                product={item}
+                onPress={() => navigation.navigate("Details", { product: item })}
+                onWishlistToggle={() => toggleWishlist(item)}
+                isWishlisted={wishlist.some(w => w.id === item.id)}
+                variant="list"
+                onAddToCart={() => addToCart(item)}
+            />
+        </View>
     ), [navigation, toggleWishlist, wishlist, addToCart]);
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <ArrowLeft size={24} color={theme.colors.text} />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>My Wishlist</Text>
-                <View style={{ width: 40 }} />
-            </View>
+        <View style={styles.mainContainer}>
+            <StatusBar barStyle="dark-content" />
+            <SafeAreaView style={styles.container} edges={['top']}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                        <ArrowLeft size={22} color={theme.colors.text} />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>My Wishlist</Text>
+                    <View style={{ width: 44 }} />
+                </View>
 
-            {wishlist.length > 0 ? (
-                <FlatList
-                    data={wishlist}
-                    renderItem={renderItem}
-                    keyExtractor={(item) => item.id.toString()}
-                    contentContainerStyle={styles.list}
-                    showsVerticalScrollIndicator={false}
-                    // Performance optimizations
-                    removeClippedSubviews={true}
-                    initialNumToRender={8}
-                />
-            ) : (
-                <EmptyState
-                    icon={<ArchiveX size={80} color={theme.colors.border} />}
-                    title="Your Wishlist is Empty"
-                    subtitle="Save items that you like for later!"
-                    buttonTitle="Explore Products"
-                    onButtonPress={() => navigation.navigate("Tabs", { screen: "Home" })}
-                />
-            )}
-        </SafeAreaView>
+                {wishlist.length > 0 ? (
+                    <FlatList
+                        data={wishlist}
+                        renderItem={renderItem}
+                        keyExtractor={(item) => item.id.toString()}
+                        contentContainerStyle={styles.list}
+                        showsVerticalScrollIndicator={false}
+                        removeClippedSubviews={true}
+                        initialNumToRender={8}
+                    />
+                ) : (
+                    <View style={{ flex: 1, justifyContent: 'center' }}>
+                        <EmptyState
+                            icon={<Heart size={80} color={theme.colors.border} />}
+                            title="Your Wishlist is Empty"
+                            subtitle="Save items that you like for later and get notified when they're on sale!"
+                            buttonTitle="Start Exploring"
+                            onButtonPress={() => navigation.navigate("Home")}
+                        />
+                    </View>
+                )}
+            </SafeAreaView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
+    mainContainer: {
         flex: 1,
         backgroundColor: theme.colors.background,
+    },
+    container: {
+        flex: 1,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: theme.spacing.md,
-        backgroundColor: theme.colors.surface,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.border,
+        paddingHorizontal: theme.spacing.md,
+        paddingVertical: theme.spacing.sm,
+        backgroundColor: theme.colors.white,
     },
     backButton: {
-        padding: theme.spacing.xs,
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        backgroundColor: '#F9FAFB',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     headerTitle: {
         ...theme.typography.h2,
-        color: theme.colors.text,
+        fontSize: 20,
     },
     list: {
-        padding: theme.spacing.md,
+        padding: theme.spacing.lg,
+        paddingBottom: 40,
     },
+    cardContainer: {
+        marginBottom: theme.spacing.md,
+    }
 });

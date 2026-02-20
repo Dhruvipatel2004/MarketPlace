@@ -1,7 +1,7 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Dimensions, Alert, Image } from 'react-native';
+import React, { useRef, useState, useEffect } from 'react';
+import { View, StyleSheet, TouchableOpacity, Text, Alert, Image } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
-import { Camera as CameraIcon, X, RotateCcw, Check } from 'lucide-react-native';
+import { X, RotateCcw, Check } from 'lucide-react-native';
 import { theme } from '../styles/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -18,7 +18,7 @@ export default function CameraScreen({ navigation, route }: any) {
         if (!hasPermission) {
             requestPermission();
         }
-    }, [hasPermission]);
+    }, [hasPermission, requestPermission]);
 
     const takePhoto = async () => {
         if (camera.current) {
@@ -28,7 +28,7 @@ export default function CameraScreen({ navigation, route }: any) {
                 });
                 setPhoto(`file://${file.path}`);
                 setIsActive(false);
-            } catch (e) {
+            } catch {
                 Alert.alert('Error', 'Failed to take photo');
             }
         }

@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import React, { useState } from 'react';
 import {
     ScrollView,
@@ -10,7 +11,7 @@ import {
     TextInput,
     Alert,
 } from 'react-native';
-import { ArrowLeft, Package, MapPin, CreditCard, User, Calendar, Star, Camera, X } from 'lucide-react-native';
+import { ArrowLeft, Package, MapPin, CreditCard, User, Calendar, Star,} from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../styles/theme';
 import { useOrderStore } from '../store/useOrderStore';

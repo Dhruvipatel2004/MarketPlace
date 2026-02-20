@@ -11,6 +11,7 @@ import WishlistScreen from "../screens/WishlistScreen";
 import CameraScreen from "../screens/CameraScreen";
 import OrderDetailScreen from "../screens/OrderDetailScreen";
 import SettingsScreen from "../screens/SettingsScreen";
+import SplashScreen from "../screens/SplashScreen";
 
 import notifee, { EventType } from "@notifee/react-native";
 import { Linking } from "react-native";
@@ -21,6 +22,7 @@ const linking: any = {
   prefixes: ["marketplace://"],
   config: {
     screens: {
+      Splash: "splash",
       Tabs: {
         screens: {
           Home: "home",
@@ -75,11 +77,15 @@ export default function AppNavigator() {
   return (
     <NavigationContainer linking={linking}>
       <Stack.Navigator
-        initialRouteName="Login"
+        initialRouteName="Splash"
         screenOptions={{
           headerShown: false,
         }}
       >
+        <Stack.Screen
+          name="Splash"
+          component={SplashScreen}
+        />
         <Stack.Screen
           name="Tabs"
           component={TabNavigator}

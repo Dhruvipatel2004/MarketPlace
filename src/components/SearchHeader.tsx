@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, TextInput, StyleSheet, ScrollView, TouchableOpacity, Text } from 'react-native';
-import { Search, SlidersHorizontal, ChevronDown } from 'lucide-react-native';
+import { Search, SlidersHorizontal } from 'lucide-react-native';
 import { theme } from '../styles/theme';
 
 interface SearchHeaderProps {
@@ -18,7 +18,6 @@ const SearchHeader: React.FC<SearchHeaderProps> = ({
     activeCategory,
     onSelectCategory,
     onOpenSort,
-    activeSort,
 }) => {
     const [searchValue, setSearchValue] = useState('');
 
@@ -31,19 +30,17 @@ const SearchHeader: React.FC<SearchHeaderProps> = ({
         <View style={styles.container}>
             <View style={styles.searchRow}>
                 <View style={styles.searchContainer}>
-                    <Search size={20} color={theme.colors.textSecondary} style={styles.searchIcon} />
+                    <Search size={18} color={theme.colors.textSecondary} style={styles.searchIcon} />
                     <TextInput
                         style={styles.searchInput}
                         placeholder="Search products..."
-                        placeholderTextColor={theme.colors.textSecondary}
+                        placeholderTextColor="#9CA3AF"
                         value={searchValue}
                         onChangeText={handleSearch}
                     />
                 </View>
                 <TouchableOpacity style={styles.filterButton} onPress={onOpenSort}>
-                    <SlidersHorizontal size={20} color={theme.colors.primary} />
-                    <Text style={styles.sortText}>{activeSort}</Text>
-                    <ChevronDown size={14} color={theme.colors.primary} />
+                    <SlidersHorizontal size={18} color={theme.colors.primary} />
                 </TouchableOpacity>
             </View>
 
@@ -67,6 +64,7 @@ const SearchHeader: React.FC<SearchHeaderProps> = ({
                     >
                         All
                     </Text>
+                    {activeCategory === 'All' && <View style={styles.activeDot} />}
                 </TouchableOpacity>
                 {categories.map((category) => (
                     <TouchableOpacity
@@ -85,6 +83,7 @@ const SearchHeader: React.FC<SearchHeaderProps> = ({
                         >
                             {category.charAt(0).toUpperCase() + category.slice(1)}
                         </Text>
+                        {activeCategory === category && <View style={styles.activeDot} />}
                     </TouchableOpacity>
                 ))}
             </ScrollView>
@@ -95,79 +94,78 @@ const SearchHeader: React.FC<SearchHeaderProps> = ({
 const styles = StyleSheet.create({
     container: {
         backgroundColor: theme.colors.surface,
-        paddingTop: theme.spacing.md,
-        paddingBottom: theme.spacing.sm,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.border,
+        paddingTop: theme.spacing.sm,
+        paddingBottom: theme.spacing.md,
     },
     searchRow: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: theme.spacing.md,
         marginBottom: theme.spacing.md,
-        gap: theme.spacing.md,
+        gap: 12,
     },
     searchContainer: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: theme.colors.background,
-        borderRadius: theme.roundness.md,
-        paddingHorizontal: theme.spacing.sm,
-        height: 44,
+        backgroundColor: '#F9FAFB',
+        borderRadius: 16,
+        paddingHorizontal: theme.spacing.md,
+        height: 48,
         borderWidth: 1,
-        borderColor: theme.colors.border,
+        borderColor: '#F3F4F6',
     },
     searchIcon: {
-        marginRight: theme.spacing.xs,
+        marginRight: theme.spacing.sm,
     },
     searchInput: {
         flex: 1,
-        ...theme.typography.body,
+        fontSize: 14,
+        fontWeight: '500',
+        color: theme.colors.text,
         paddingVertical: 0,
     },
     filterButton: {
-        flexDirection: 'row',
+        width: 48,
+        height: 48,
+        backgroundColor: '#F9FAFB',
+        borderRadius: 16,
+        justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: theme.colors.background,
-        paddingHorizontal: theme.spacing.sm,
-        borderRadius: theme.roundness.md,
-        height: 44,
-        gap: 6,
         borderWidth: 1,
-        borderColor: theme.colors.border,
-    },
-    sortText: {
-        ...theme.typography.caption,
-        fontSize: 12,
-        color: theme.colors.primary,
-        fontWeight: '600',
+        borderColor: '#F3F4F6',
     },
     categoriesContainer: {
         paddingHorizontal: theme.spacing.md,
-        paddingBottom: theme.spacing.xs,
-        gap: theme.spacing.sm,
+        gap: 12,
     },
     categoryBadge: {
-        paddingHorizontal: theme.spacing.md,
-        paddingVertical: 6,
-        borderRadius: 20,
-        backgroundColor: theme.colors.background,
-        borderWidth: 1,
-        borderColor: theme.colors.border,
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 12,
+        backgroundColor: '#F9FAFB',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
     },
     categoryBadgeActive: {
-        backgroundColor: theme.colors.primary,
-        borderColor: theme.colors.primary,
+        backgroundColor: theme.colors.primary + '10', // 10% opacity
     },
     categoryText: {
-        ...theme.typography.caption,
+        fontSize: 14,
+        fontWeight: '600',
         color: theme.colors.textSecondary,
-        fontWeight: '500',
     },
     categoryTextActive: {
-        color: theme.colors.white,
-        fontWeight: 'bold',
+        color: theme.colors.primary,
+    },
+    activeDot: {
+        width: 4,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: theme.colors.primary,
+        position: 'absolute',
+        bottom: 6,
     },
 });
 

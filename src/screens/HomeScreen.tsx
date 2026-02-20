@@ -1,12 +1,12 @@
 import React, { useCallback, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   StyleSheet,
   View,
   Modal,
   Text,
-  TouchableOpacity
+  TouchableOpacity,
+  StatusBar
 } from "react-native";
 import MainLayout from "../components/MainLayout";
 import { theme } from "../styles/theme";
@@ -16,7 +16,7 @@ import { useCartStore } from "../store/useCartStore";
 import { useWishlistStore } from "../store/useWishlistStore";
 import SearchHeader from "../components/SearchHeader";
 import EmptyState from "../components/common/EmptyState";
-import { SearchX } from "lucide-react-native";
+import { SearchX, Check } from "lucide-react-native";
 import { ProductCardSkeleton } from "../components/common/SkeletonLoader";
 
 type SortOption = 'Default' | 'Price: Low' | 'Price: High' | 'Rating';
@@ -82,14 +82,16 @@ export default function HomeScreen({ navigation }: any) {
     const isItemWishlisted = wishlist.some(w => w.id === item.id);
 
     return (
-      <ProductCard
-        product={item}
-        onPress={() => handleProductPress(item)}
-        onWishlistToggle={() => toggleWishlist(item)}
-        isWishlisted={isItemWishlisted}
-        variant="grid"
-        onAddToCart={() => addToCart(item)}
-      />
+      <View style={styles.cardWrapper}>
+        <ProductCard
+          product={item}
+          onPress={() => handleProductPress(item)}
+          onWishlistToggle={() => toggleWishlist(item)}
+          isWishlisted={isItemWishlisted}
+          variant="grid"
+          onAddToCart={() => addToCart(item)}
+        />
+      </View>
     );
   }, [handleProductPress, toggleWishlist, wishlist, addToCart]);
 
@@ -154,7 +156,6 @@ export default function HomeScreen({ navigation }: any) {
             />
           ) : null
         }
-        // Performance optimizations
         removeClippedSubviews={true}
         maxToRenderPerBatch={10}
         windowSize={5}
@@ -164,7 +165,7 @@ export default function HomeScreen({ navigation }: any) {
       <Modal
         visible={isSortModalVisible}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setIsSortModalVisible(false)}
       >
         <TouchableOpacity
@@ -173,24 +174,32 @@ export default function HomeScreen({ navigation }: any) {
           onPress={() => setIsSortModalVisible(false)}
         >
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Sort By</Text>
-            {(['Default', 'Price: Low', 'Price: High', 'Rating'] as SortOption[]).map((option) => (
-              <TouchableOpacity
-                key={option}
-                style={[
-                  styles.sortOption,
-                  activeSort === option && styles.sortOptionActive
-                ]}
-                onPress={() => handleSortSelect(option)}
-              >
-                <Text style={[
-                  styles.sortOptionText,
-                  activeSort === option && styles.sortOptionTextActive
-                ]}>
-                  {option}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            <View style={styles.modalHeader}>
+              <View style={styles.modalIndicator} />
+              <Text style={styles.modalTitle}>Sort By</Text>
+            </View>
+            <View style={styles.sortOptionsContainer}>
+              {(['Default', 'Price: Low', 'Price: High', 'Rating'] as SortOption[]).map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  style={[
+                    styles.sortOption,
+                    activeSort === option && styles.sortOptionActive
+                  ]}
+                  onPress={() => handleSortSelect(option)}
+                >
+                  <Text style={[
+                    styles.sortOptionText,
+                    activeSort === option && styles.sortOptionTextActive
+                  ]}>
+                    {option}
+                  </Text>
+                  {activeSort === option && (
+                    <Check size={20} color={theme.colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -199,59 +208,78 @@ export default function HomeScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: theme.colors.background,
-  },
   listContainer: {
     padding: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
     paddingBottom: 40,
     flexGrow: 1,
+    backgroundColor: theme.colors.background,
   },
   row: {
     justifyContent: 'space-between',
+  },
+  cardWrapper: {
+    width: '48.5%', // Slightly less than 50 to account for margin
   },
   skeletonContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     padding: theme.spacing.md,
     justifyContent: 'space-between',
+    backgroundColor: theme.colors.background,
+    flex: 1,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: theme.colors.surface,
-    borderTopLeftRadius: theme.roundness.xl,
-    borderTopRightRadius: theme.roundness.xl,
-    padding: theme.spacing.lg,
-    paddingBottom: 40,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: theme.spacing.xl,
+    paddingBottom: 50,
+  },
+  modalHeader: {
+    alignItems: 'center',
+    marginBottom: theme.spacing.lg,
+  },
+  modalIndicator: {
+    width: 40,
+    height: 4,
+    backgroundColor: theme.colors.border,
+    borderRadius: 2,
+    marginBottom: theme.spacing.md,
   },
   modalTitle: {
     ...theme.typography.h2,
-    marginBottom: theme.spacing.md,
-    textAlign: 'center',
+    color: theme.colors.text,
+  },
+  sortOptionsContainer: {
+    gap: 12,
   },
   sortOption: {
-    paddingVertical: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: 18,
+    borderRadius: 16,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
   },
   sortOptionActive: {
-    backgroundColor: '#F0F7FF',
-    borderRadius: theme.roundness.md,
+    backgroundColor: theme.colors.primary + '08',
+    borderColor: theme.colors.primary + '20',
   },
   sortOptionText: {
-    ...theme.typography.body,
-    color: theme.colors.text,
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
   },
   sortOptionTextActive: {
     color: theme.colors.primary,
-    fontWeight: 'bold',
   },
 });
